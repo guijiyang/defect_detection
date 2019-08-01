@@ -47,7 +47,7 @@ class ImageDataset(data.Dataset):
         else:
             self.img_count=int(len(self.image_infos)*(1-self.split_ratio))
             self.image_infos=self.image_infos[len(self.image_infos)-self.img_count:]
-        print(self.img_count)
+        # print(self.img_count)
 
     def __len__(self):
         return self.img_count

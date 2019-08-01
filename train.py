@@ -13,6 +13,8 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data as data
 import torch.optim as optim
+# import torchsummary
+# from thop import profile
 
 # from sklearn.cross_validation import train_test_split
 
@@ -65,7 +67,14 @@ def train(restart_train, data_dir):
     loss_network=FocalLoss(gamma=1,alpha=0.5, size_average=False).to(device)
     optimizer= optim.Adam(model.parameters(), lr=cfg.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
- 
+
+    # 统计模型参数
+    # torchsummary.summary(model, (1,512,512),device='cpu')
+    # 统计模型FLOPS
+    # input_flops=torch.randn(1,1,512,512)
+    # flops,params=profile(model,inputs=( input_flops,))
+    # logger('模型的FlOPS : {}, 参数量 : {}'.format(flops,params))
+
     if restart_train ==True:
         if not os.path.exists(WEIGHT_PATH):
             os.mkdir(WEIGHT_PATH)
@@ -102,14 +111,16 @@ def train(restart_train, data_dir):
             torch.save(model.state_dict(), MODEL_PTH)
         
         model.eval()
-        dice_iou=0
+        dice_ious=0
         with torch.no_grad():
             for images, target in test_loader:
                 images,target=images.to(device), target.to(device)
                 output=model(images)
-                dice_iou+=compute_dice(output, target)
-        dice_iou/=(len(test_dataset)/cfg.batch_size)
-        logger("epochs : {}, dice_iou : {}".format(epoch, dice_iou))
+                output=torch.where(output>0.5,torch.tensor(1.0),torch.tensor(0.))
+                dice_iou=compute_dice(output, target)
+                dice_ious+=dice_iou.data
+        dice_ious/=(len(test_dataset))
+        logger("epoch : {}, dice_iou : {}".format(epoch, dice_ious))
         scheduler.step()
         epoch+=1
 

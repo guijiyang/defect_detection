@@ -56,6 +56,7 @@ def compute_dice(gt_mask, pred_mask, alpha=0.5, beta=0.5):
    """
     gt_mask_f = gt_mask.flatten()
     pred_mask_f = pred_mask.flatten()
+    pred_mask_f=pred_mask_f.type_as(gt_mask_f)
     TP = torch.sum(gt_mask_f*pred_mask_f)
     gt_sum=torch.sum(gt_mask_f)
     pred_sum=torch.sum(pred_mask_f)
