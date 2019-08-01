@@ -36,7 +36,7 @@ class ImageDataset(data.Dataset):
                     self.image_infos.append(image_info)
                 cur_image_id = image_id
                 image_info = {
-                    'ImageId_path': os.path.join(self.dataset_dir, 'train', cur_image_id),
+                    'ImageId_path': os.path.join(self.dataset_dir, 'train_images', cur_image_id),
                     'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
             else:
                 image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
