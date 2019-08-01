@@ -146,12 +146,12 @@ class RandomCrop(object):
             if self.padding_mode == 'constant':
                 img = np.pad(img, padding_size, self.padding_mode,
                              constant_values=self.fill)
-                masks[idx] = np.pad(masks[idx], padding_size,
+                masks = np.pad(masks, padding_size,
                                     self.padding_mode, constant_values=self.fill)
             else:
                 img = np.pad(img, padding_size, self.padding_mode)
-                masks[idx] = np.pad(
-                    masks[idx], padding_size, self.padding_mode)
+                masks = np.pad(
+                    masks, padding_size, self.padding_mode)
             # for idx in range(len(masks)):
             #     if self.padding_mode == 'constant':
             #         masks[idx] = np.pad(masks[idx], padding_size,
@@ -252,7 +252,7 @@ class ToTensor(object):
     def __call__(self,  img, masks=None):
         img = self.totensor(img)
         masks= torch.as_tensor(
-            masks, dtype=torch.float).permute(2, 0, 1)
+            masks).permute(2, 0, 1)
         
         return img, masks
 

@@ -2,10 +2,13 @@ from ImgDataset import ImageDataset
 from transform import ImageTransform
 from utils import display_top_masks,compute_dice
 from unet import UNet
+from loss import FocalLoss
 from config import Config
 from logger import Logger
 
 import os
+path=os.path.abspath(__file__)
+os.chdir(os.path.dirname(path))
 import torch
 import torch.nn.functional as F
 import torch.utils.data as data
@@ -30,12 +33,12 @@ def detection_collate(batch):
     imgs = []
     for sample in batch:
         imgs.append(sample[0])
-        targets.append(torch.FloatTensor(sample[1]))
-    return torch.stack(imgs, 0), targets
+        targets.append(sample[1])
+    return torch.stack(imgs, 0), torch.stack(targets,0)
 
 
 def train(restart_train):
-    logger = Logger('./', 'defect_detection')
+    logger = Logger('log', 'defect_detection')
     logger('开始训练')
     cfg = Config()
     cfg.display()
@@ -57,7 +60,8 @@ def train(restart_train):
                                   shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
     
     #加载模型
-    model=UNet(image_size=(512, 512))
+    model=UNet(image_size=(512, 512)).to(device)
+    loss_network=FocalLoss(gamma=1,alpha=0.5, size_average=False).to(device)
     optimizer= optim.Adam(model.parameters(), lr=cfg.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
  
@@ -86,8 +90,8 @@ def train(restart_train):
             images,target=images.to(device), target.to(device)
             optimizer.zero_grad()
             output=model(images)
-            loss=F.binary_cross_entropy(output, target)
-            losses+=loss
+            loss=loss_network(output, target)
+            losses+=loss.data
             loss.backward()
             optimizer.step()
             if idx%100==0:

@@ -61,4 +61,4 @@ def compute_dice(gt_mask, pred_mask, alpha=0.5, beta=0.5):
     pred_sum=torch.sum(pred_mask_f)
     if gt_sum == 0 and pred_sum == 0:
         return torch.tensor(1.0)
-    return TP/(gt_sum+pred_sum)
+    return (2*TP)/(gt_sum+pred_sum)

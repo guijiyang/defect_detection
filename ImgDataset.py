@@ -26,40 +26,28 @@ class ImageDataset(data.Dataset):
         self.transform = transform
         self.image_infos = []
         train_fd = pd.read_csv(os.path.join(self.dataset_dir, 'train.csv'))
-        self.total_count=train_fd['ImageId_ClassId'].count()
+        total_count=train_fd['ImageId_ClassId'].count()
+        image_info = None
+        cur_image_id = None
+        for idx in range(total_count):
+            image_id = train_fd['ImageId_ClassId'][idx].split('_')[0]
+            if cur_image_id != image_id:
+                if image_info != None:
+                    self.image_infos.append(image_info)
+                cur_image_id = image_id
+                image_info = {
+                    'ImageId_path': os.path.join(self.dataset_dir, 'train', cur_image_id),
+                    'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
+            else:
+                image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
+        self.image_infos.append(image_info)
         if self.mode == 'train':
-            self.img_count=int(self.total_count*self.split_ratio)
-            image_info = None
-            cur_image_id = None
-            for idx in range(self.img_count):
-                image_id = train_fd['ImageId_ClassId'][idx].split('_')[0]
-                if cur_image_id != image_id:
-                    if image_info != None:
-                        self.image_infos.append(image_info)
-                    cur_image_id = image_id
-                    image_info = {
-                        'ImageId_path': os.path.join(self.dataset_dir, 'train', cur_image_id),
-                        'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
-                else:
-                    image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
-            self.image_infos.append(image_info)
+            self.img_count=int(len(self.image_infos)*self.split_ratio)
+            self.image_infos=self.image_infos[:self.img_count]
         else:
-            self.img_count=self.total_count-int(self.total_count*self.split_ratio)
-            image_info = None
-            cur_image_id = None
-            for idx in range(self.total_count-1, self.total_count-self.img_count, -1):
-                image_id = train_fd['ImageId_ClassId'][idx].split('_')[0]
-                if cur_image_id != image_id:
-                    if image_info != None:
-                        self.image_infos.append(image_info)
-                    cur_image_id = image_id
-                    image_info = {
-                        'ImageId_path': os.path.join(self.dataset_dir, 'train', cur_image_id),
-                        'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
-                else:
-                    image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
-            self.image_infos.append(image_info)
-            
+            self.img_count=int(len(self.image_infos)*(1-self.split_ratio))
+            self.image_infos=self.image_infos[len(self.image_infos)-self.img_count:]
+        print(self.img_count)
 
     def __len__(self):
         return self.img_count
