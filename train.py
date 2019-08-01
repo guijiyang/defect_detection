@@ -39,11 +39,10 @@ def detection_collate(batch):
     return torch.stack(imgs, 0), torch.stack(targets,0)
 
 
-def train(restart_train, data_dir):
+def train(restart_train, data_dir, cfg):
     logger = Logger('log', 'defect_detection')
     logger('开始训练')
-    cfg = Config()
-    cfg.display()
+    
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device=torch.device('cpu')
     WEIGHT_PATH='weights'
@@ -125,4 +124,6 @@ def train(restart_train, data_dir):
         epoch+=1
 
 if __name__ == "__main__":
-    train(True, data_dir='/home/guijiyang/dataset/severstal_steel')
+    cfg = Config()
+    cfg.display()
+    train(True, data_dir='/home/guijiyang/dataset/severstal_steel', cfg)

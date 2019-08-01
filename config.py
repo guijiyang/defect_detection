@@ -1,6 +1,6 @@
 class Config():
     """ configuration for train and test """
-    batch_size=32
+    batch_size=16
     learning_rate=0.0005
     max_epochs=30
     adjust_iter=3
