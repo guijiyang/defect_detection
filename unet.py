@@ -41,8 +41,9 @@ class up_sample_conv(nn.Module):
             nn.Upsample(scale_factor=2, mode='bilinear'))
 
     def forward(self, x, y):
-        output = self.conv(x)
-        return torch.cat([output, y], axis=1)
+        x = self.conv(x)
+        output=torch.cat([x, y], dim=1)
+        return self.layer(output)
 
 
 class UNet(nn.Module):
@@ -94,5 +95,6 @@ class UNet(nn.Module):
             up2=self.up2(center,down2) # 256*128*128
         up1 = self.up1(up2, down1)  # 128*512*512 or 128*256*256
         convOut = self.conv(up1)  # 64*512*512 or 64*256*256
-        output = torch.cat([convOut, firstOut], axis=1)  # 128*512*512 or 128*256*256
+        output = torch.cat([convOut, firstOut], dim=1)  # 128*512*512 or 128*256*256
         output = self.end(output)  # 1*512*512 or 1*256*256
+        return output

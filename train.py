@@ -37,21 +37,22 @@ def detection_collate(batch):
     return torch.stack(imgs, 0), torch.stack(targets,0)
 
 
-def train(restart_train):
+def train(restart_train, data_dir):
     logger = Logger('log', 'defect_detection')
     logger('开始训练')
     cfg = Config()
     cfg.display()
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device=torch.device('cpu')
     WEIGHT_PATH='weights'
     GLOBAL_STEP_FILE=os.path.join(WEIGHT_PATH,'epoch.log')
     MODEL_PTH=os.path.join(WEIGHT_PATH,'unet_1.pth')
     train_dataset = ImageDataset(
-        '/home/guijiyang/dataset/severstal_steel', mode='train',split_ratio=0.9, transform=ImageTransform(image_size=(512, 512)))
+        data_dir, mode='train',split_ratio=0.9, transform=ImageTransform(image_size=(512, 512)))
     train_dataset_lens=len(train_dataset)
     logger('训练数据集 ：{}'.format(train_dataset_lens))
     test_dataset = ImageDataset(
-        '/home/guijiyang/dataset/severstal_steel', mode='test',split_ratio=0.9, transform=ImageTransform(image_size=(512, 512)))
+        data_dir, mode='test',split_ratio=0.9, transform=ImageTransform(image_size=(512, 512)))
     logger('测试数据集 ：{}'.format(len(test_dataset)))
     # print(train_dataset[0])
     train_loader = data.DataLoader(train_dataset, batch_size=cfg.batch_size,
@@ -85,7 +86,7 @@ def train(restart_train):
     losses = 0
     while epoch <= cfg.max_epochs:
         model.train()
-        for idx, images,target in enumerate(train_loader):
+        for idx,(images,target) in enumerate(train_loader):
             
             images,target=images.to(device), target.to(device)
             optimizer.zero_grad()
@@ -94,8 +95,8 @@ def train(restart_train):
             losses+=loss.data
             loss.backward()
             optimizer.step()
-            if idx%100==0:
-                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(epoch,idx,losses/cfg.log_iter))
+            if idx%100==0 and idx!=0:
+                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(epoch,idx,losses/100))
                 losses=0
             # save whole model
             torch.save(model.state_dict(), MODEL_PTH)
@@ -113,4 +114,4 @@ def train(restart_train):
         epoch+=1
 
 if __name__ == "__main__":
-    train(True)
+    train(True, data_dir='/home/guijiyang/dataset/severstal_steel')
