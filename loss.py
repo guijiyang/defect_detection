@@ -17,6 +17,7 @@ class FocalLoss(nn.Module):
     def to(self,device):
         self.alpha=self.alpha.to(device)
         super().to(device)
+        return self
 
     def forward(self, pred, target):
         # if input.dim()>2:
