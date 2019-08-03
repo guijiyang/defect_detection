@@ -38,14 +38,9 @@ def detection_collate(batch):
     return torch.stack(imgs, 0), torch.tensor(targets)
 
 
-if __name__ == "__main__":
-    # 是否从开始训练
-    restart_train = True
-
+def train(restart_train, data_dir,  cfg):
     logger = Logger('log', 'classifier')
     logger('开始训练')
-    cfg = ClassifyConfig()
-    cfg.display()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     WEIGHT_PATH = 'weights'
@@ -93,22 +88,22 @@ if __name__ == "__main__":
         test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
                                       shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
         model.train()
-        # for idx, (images, target) in enumerate(train_loader):
+        for idx, (images, target) in enumerate(train_loader):
 
-        #     images, target = images.to(device), target.to(device)
-        #     optimizer.zero_grad()
-        #     output = model(images)
+            images, target = images.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = model(images)
 
-        #     loss = criterion(output, target)
-        #     losses += loss.data
-        #     loss.backward()
-        #     optimizer.step()
-        #     if idx % 100 == 0 and idx != 0:
-        #         logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
-        #             epoch, idx, losses/100))
-        #         losses = 0
-        #     # save whole model
-        #     torch.save(model.state_dict(), MODEL_NAME.format(epoch))
+            loss = criterion(output, target)
+            losses += loss.data
+            loss.backward()
+            optimizer.step()
+            if idx % 100 == 0 and idx != 0:
+                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
+                    epoch, idx, losses/100))
+                losses = 0
+            # save whole model
+            torch.save(model.state_dict(), MODEL_NAME.format(epoch))
 
         model.eval()
         correct = 0
@@ -122,3 +117,8 @@ if __name__ == "__main__":
                 total += target.shape[0]
         logger("epoch : {}, accuracy : {}".format(epoch, correct/total))
         epoch += 1
+
+if __name__ == "__main__":
+    cfg = ClassifyConfig()
+    cfg.display()
+    train(True, data_dir, cfg)
