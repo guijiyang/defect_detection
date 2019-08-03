@@ -22,7 +22,7 @@ class Resize(object):
             [cv2.INTER_LINEAR, cv2.INTER_AREA , cv2.INTER_CUBIC].
     """
 
-    def __init__(self, image_size, interpolation=None):
+    def __init__(self, image_size, interpolation=cv2.INTER_LINEAR):
         if isinstance(image_size, numbers.Number):
             self.image_size = (image_size, numbers)
         else:
@@ -32,9 +32,10 @@ class Resize(object):
     def __call__(self, image, masks=None):
         image = cv2.resize(image, self.image_size,
                            interpolation=self.interpolation)
-        for i in range(len(masks.size[0])):
-            masks[i] = cv2.resize(masks[i], self.image_size,
-                                  interpolation=self.interpolation)
+        if masks != None:
+            masks = cv2.resize(masks, self.image_size,
+                               interpolation=self.interpolation)
+        return image, masks
 
 
 class RandomCrop(object):
@@ -123,13 +124,15 @@ class RandomCrop(object):
             if self.padding_mode == 'constant':
                 img = np.pad(img, padding_size,
                              self.padding_mode, constant_values=self.fill)
-                masks = np.pad(masks, padding_size,
-                                    self.padding_mode, constant_values=self.fill)
+                if masks != None:
+                    masks = np.pad(masks, padding_size,
+                                   self.padding_mode, constant_values=self.fill)
             else:
                 img = np.pad(
                     img, padding_size, self.padding_mode)
-                masks = np.pad(
-                    masks, padding_size, self.padding_mode)
+                if masks != None:
+                    masks = np.pad(
+                        masks, padding_size, self.padding_mode)
             # for idx in range(len(masks)):
             #     if self.padding_mode == 'constant':
             #         masks[idx] = np.pad(masks[idx], padding_size,
@@ -137,7 +140,7 @@ class RandomCrop(object):
             #     else:
             #         masks[idx] = np.pad(
             #             masks[idx], padding_size, self.padding_mode)
-                
+
         # pad the height if needed
         if self.pad_if_needed and img.shape[0] < self.size[0]:
             padding_height = (
@@ -146,12 +149,14 @@ class RandomCrop(object):
             if self.padding_mode == 'constant':
                 img = np.pad(img, padding_size, self.padding_mode,
                              constant_values=self.fill)
-                masks = np.pad(masks, padding_size,
-                                    self.padding_mode, constant_values=self.fill)
+                if masks != None:
+                    masks = np.pad(masks, padding_size,
+                                   self.padding_mode, constant_values=self.fill)
             else:
                 img = np.pad(img, padding_size, self.padding_mode)
-                masks = np.pad(
-                    masks, padding_size, self.padding_mode)
+                if masks != None:
+                    masks = np.pad(
+                        masks, padding_size, self.padding_mode)
             # for idx in range(len(masks)):
             #     if self.padding_mode == 'constant':
             #         masks[idx] = np.pad(masks[idx], padding_size,
@@ -161,7 +166,8 @@ class RandomCrop(object):
             #             masks[idx], padding_size, self.padding_mode)
         i, j, h, w = self.get_params(img, self.size)
         img = img[i:i+h, j:j+w]
-        masks = masks[i:i+h, j:j+w]
+        if masks != None:
+            masks = masks[i:i+h, j:j+w]
 
         return img, masks
 
@@ -223,7 +229,8 @@ class RandomRotation(object):
         for i in range(img.shape[2]):
             img[:, :, i] = cv2.warpAffine(
                 img[:, :, i], M, (image_size[1], image_size[0]))
-        for i in range(masks.shape[2]):
+        if masks != None:
+            for i in range(masks.shape[2]):
                 masks[:, :, i] = cv2.warpAffine(
                     masks[:, :, i], M, (image_size[1], image_size[0]))
         return img, masks
@@ -251,15 +258,15 @@ class ToTensor(object):
 
     def __call__(self,  img, masks=None):
         img = self.totensor(img)
-        masks= torch.as_tensor(
-            masks).permute(2, 0, 1)
-        
+        if masks != None:
+            masks = torch.as_tensor(
+                masks).permute(2, 0, 1)
+
         return img, masks
 
 
 class ImageTransform():
     def __init__(self, image_size=(512, 512)):
-        self.image_size = image_size
         self.augment = [
             RandomCrop(image_size),
             RandomRotation(180),
@@ -271,3 +278,16 @@ class ImageTransform():
         for tranform in self.augment:
             image, masks = tranform(image, masks)
         return image, masks
+
+
+class MaskTransform():
+    def __init__(self, image_size=(227, 227)):
+        self.augment = [
+            Resize(image_size),
+            ToTensor()
+        ]
+
+    def __call__(self, image, class_id):
+        for tranform in self.augment:
+            image, _ = tranform(image)
+        return image, class_id

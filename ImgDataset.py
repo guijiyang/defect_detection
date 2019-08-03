@@ -19,13 +19,10 @@ class ImageDataset(data.Dataset):
         transform: transform for Images.
     """
 
-    def __init__(self, dataset_dir, mode='train', split_ratio=0.7, transform=None):
-        self.dataset_dir = dataset_dir
-        self.mode = mode
-        self.split_ratio=split_ratio
+    def __init__(self, dataset_dir, transform=None):
         self.transform = transform
         self.image_infos = []
-        train_fd = pd.read_csv(os.path.join(self.dataset_dir, 'train.csv'))
+        train_fd = pd.read_csv(os.path.join(dataset_dir, 'train.csv'))
         total_count=train_fd['ImageId_ClassId'].count()
         image_info = None
         cur_image_id = None
@@ -36,26 +33,19 @@ class ImageDataset(data.Dataset):
                     self.image_infos.append(image_info)
                 cur_image_id = image_id
                 image_info = {
-                    'ImageId_path': os.path.join(self.dataset_dir, 'train_images', cur_image_id),
+                    'ImageId_path': os.path.join(dataset_dir, 'train_images', cur_image_id),
                     'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
             else:
                 image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
         self.image_infos.append(image_info)
-        if self.mode == 'train':
-            self.img_count=int(len(self.image_infos)*self.split_ratio)
-            self.image_infos=self.image_infos[:self.img_count]
-        else:
-            self.img_count=int(len(self.image_infos)*(1-self.split_ratio))
-            self.image_infos=self.image_infos[len(self.image_infos)-self.img_count:]
-        # print(self.img_count)
 
     def __len__(self):
-        return self.img_count
+        return len(self.image_infos)
 
     def __getitem__(self, index):
         image_info = self.image_infos[index]
-        image = cv2.imread(image_info['ImageId_path'])
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image = cv2.imread(image_info['ImageId_path'], 0)
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         image=np.expand_dims(image,axis=-1)
         masks = np.zeros_like(image,dtype=np.uint8)
         for idx in range(len(image_info['mask'])):
@@ -68,3 +58,30 @@ class ImageDataset(data.Dataset):
         if self.transform:
             image, masks = self.transform(image, masks)
         return image, masks
+
+class MaskDataset(data.Dataset):
+    r"""
+    Mask dataset for train and test
+    """
+    def __init__(self, dataset_dir,  split_ratio=0.9, transform=None):
+        self.transform=transform
+        self.image_infos=[]
+        self.image_count=0
+        fd=pd.read_csv(os.path.join(dataset_dir, 'mask.csv'),names=['image_id','class_id'])
+        total_count=fd.image_id.count()
+        for idx in range(total_count):
+            image_id=fd.image_id[idx]
+            class_id=int(fd.class_id[idx])
+            self.image_infos.append({'image_path':os.path.join(dataset_dir,'mask',image_id),'class_id':class_id})
+        self.image_count=len(self.image_infos)
+    
+    def __len__(self):
+        return self.image_count
+
+    def __getitem__(self, index):
+        image_info=self.image_infos[index]
+        image=cv2.imread(image_info['image_path'],0)
+        class_id=image_info['class_id']
+        if self.transform:
+            image=self.transform(image)
+        return image,class_id
