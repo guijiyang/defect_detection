@@ -35,7 +35,7 @@ def detection_collate(batch):
     for sample in batch:
         imgs.append(sample[0])
         targets.append(sample[1])
-    return torch.stack(imgs, 0), torch.stack(targets, 0)
+    return torch.stack(imgs, 0), torch.tensor(targets)
 
 
 if __name__ == "__main__":

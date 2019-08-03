@@ -15,7 +15,7 @@ class CompactNet(nn.Module):
     def __init__(self, num_classes=4):
         super().__init__()
         self.layers=nn.Sequential(
-            conv_Relu(227,55,11,4,0),   #1*227*227 => 96*55*55
+            conv_Relu(1,96,11,4,0),   #1*227*227 => 96*55*55
             nn.MaxPool2d(3,2),   #96*55*55 => 96*27*27
             conv_Relu(96,129,5,1,0),    #96*27*27 => 128*23*23
             nn.MaxPool2d(3,2),  #128*23*23 => 128*11*11
@@ -27,6 +27,23 @@ class CompactNet(nn.Module):
             nn.Linear(1000,256),
             nn.Linear(256,num_classes)
         )
+
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                nn.init.kaiming_normal_(m.weight.data)
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                n = m.weight.size(1)
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.zero_()
 
     def forward(self, x):
         return self.layers(x)
