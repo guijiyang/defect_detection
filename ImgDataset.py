@@ -59,6 +59,8 @@ class ImageDataset(data.Dataset):
             image, masks = self.transform(image, masks)
         return image, masks
 
+class_id_map={'1':0,'2':1,'3':2,'4':3}
+
 class MaskDataset(data.Dataset):
     r"""
     Mask dataset for train and test
@@ -71,7 +73,7 @@ class MaskDataset(data.Dataset):
         total_count=fd.image_id.count()
         for idx in range(total_count):
             image_id=fd.image_id[idx]
-            class_id=int(fd.class_id[idx])
+            class_id=class_id_map[str(fd.class_id[idx])]
             self.image_infos.append({'image_path':os.path.join(dataset_dir,'mask',image_id),'class_id':class_id})
         self.image_count=len(self.image_infos)
     

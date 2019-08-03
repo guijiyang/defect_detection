@@ -35,7 +35,7 @@ def detection_collate(batch):
     for sample in batch:
         imgs.append(sample[0])
         targets.append(sample[1])
-    return torch.stack(imgs, 0), torch.tensor(targets).reshape(-1,1)
+    return torch.stack(imgs, 0), torch.tensor(targets)
 
 
 if __name__ == "__main__":
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     WEIGHT_PATH = 'weights'
     GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
     MODEL_NAME = os.path.join(WEIGHT_PATH, 'compactNet_{}.pth')
-    mask_dataset = MaskDataset(data_dir, transform=MaskTransform())
+    mask_dataset = MaskDataset(data_dir, transform=MaskTransform(image_size=cfg.image_size))
 
     dataset_lens = len(mask_dataset)
     train_data_lens = int(dataset_lens*0.7)
@@ -93,22 +93,22 @@ if __name__ == "__main__":
         test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
                                       shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
         model.train()
-        for idx, (images, target) in enumerate(train_loader):
+        # for idx, (images, target) in enumerate(train_loader):
 
-            images, target = images.to(device), target.to(device)
-            optimizer.zero_grad()
-            output = model(images)
+        #     images, target = images.to(device), target.to(device)
+        #     optimizer.zero_grad()
+        #     output = model(images)
 
-            loss = criterion(output, target)
-            losses += loss.data
-            loss.backward()
-            optimizer.step()
-            if idx % 100 == 0 and idx != 0:
-                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
-                    epoch, idx, losses/100))
-                losses = 0
-            # save whole model
-            torch.save(model.state_dict(), MODEL_NAME.format(epoch))
+        #     loss = criterion(output, target)
+        #     losses += loss.data
+        #     loss.backward()
+        #     optimizer.step()
+        #     if idx % 100 == 0 and idx != 0:
+        #         logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
+        #             epoch, idx, losses/100))
+        #         losses = 0
+        #     # save whole model
+        #     torch.save(model.state_dict(), MODEL_NAME.format(epoch))
 
         model.eval()
         correct = 0
@@ -117,7 +117,7 @@ if __name__ == "__main__":
             for images, target in test_loader:
                 images, target = images.to(device), target.to(device)
                 output = model(images)
-                pred = torch.argmax(output, dim=1)+1
+                pred = torch.argmax(output, dim=1)
                 correct += (pred == target).sum().float()
                 total += target.shape[0]
         logger("epoch : {}, accuracy : {}".format(epoch, correct/total))
