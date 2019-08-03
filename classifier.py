@@ -23,7 +23,9 @@ class CompactNet(nn.Module):
             conv_Relu(256,256,3),  #256*11*11 => 256*11*11
             conv_Relu(256,128,3),  #256*11*11 => 128*11*11
             nn.MaxPool2d(3,2),  #128*11*11 => 128*5*5
-            nn.Linear(128,1000),
+        )
+        self.fcs=nn.Sequential(
+            nn.Linear(128*5*5,1000),
             nn.Linear(1000,256),
             nn.Linear(256,num_classes)
         )
@@ -46,5 +48,7 @@ class CompactNet(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        return self.layers(x)
-
+        in_size=x.shape[0]
+        output=self.layers(x)
+        output=output.view(in_size,-1)
+        return self.fcs(output)
