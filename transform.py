@@ -287,7 +287,7 @@ class MaskTransform():
             ToTensor()
         ]
 
-    def __call__(self, image, class_id):
+    def __call__(self, image):
         for tranform in self.augment:
             image, _ = tranform(image)
-        return image, class_id
+        return image
