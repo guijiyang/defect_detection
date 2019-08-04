@@ -43,6 +43,7 @@ def train(restart_train, data_dir,  cfg):
     logger('开始训练')
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device=torch.device('cpu')
     WEIGHT_PATH = 'weights'
     GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
     MODEL_NAME = os.path.join(WEIGHT_PATH, 'compactNet_{}.pth')
@@ -78,7 +79,7 @@ def train(restart_train, data_dir,  cfg):
                 raise Exception('cannot find model weights')
     logger('起始epoch：{}'.format(epoch))
     losses = 0
-
+    loss_epochs=[]
     while epoch <= cfg.max_epochs:
         train_data, eval_data = random_split(
             mask_dataset, [train_data_lens, eval_data_lens])
@@ -88,6 +89,7 @@ def train(restart_train, data_dir,  cfg):
         test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
                                       shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
         model.train()
+        loss_epoch=0
         for idx, (images, target) in enumerate(train_loader):
 
             images, target = images.to(device), target.to(device)
@@ -103,6 +105,7 @@ def train(restart_train, data_dir,  cfg):
             if idx % 100 == 0 and idx != 0:
                 logger("epoch : {}, batchs : {}, loss :  {:.6f}".format(
                     epoch, idx, losses/100))
+                loss_epoch+=losses
                 losses = 0
         # save whole model
         torch.save(model.state_dict(), MODEL_NAME.format(epoch))
@@ -118,6 +121,12 @@ def train(restart_train, data_dir,  cfg):
                 correct += (pred == target).sum().float()
                 total += target.shape[0]
         logger("epoch : {}, accuracy : {}".format(epoch, correct/total))
+        
+        # 损失停滞，则终止训练
+        if len(loss_epochs)>1 and loss_epoch>=0.98*loss_epochs[-1] and loss_epoch>=0.98*loss_epochs[-2]:
+            logger('损失停滞，中断训练，当前损失：{} ，前面损失：{}'.format(loss_epoch, loss_epochs[-1]))
+            break
+        loss_epochs.append(loss_epoch)
         epoch += 1
 
 if __name__ == "__main__":
