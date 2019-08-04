@@ -96,7 +96,7 @@ def train(restart_train, data_dir, cfg):
 
         train_loader = data.DataLoader(train_data, batch_size=cfg.batch_size,
                                        shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
-        test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
+        eval_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
                                       shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
         model.train()
         for idx, (images, target) in enumerate(train_loader):
@@ -125,7 +125,7 @@ def train(restart_train, data_dir, cfg):
                     output > 0.5, torch.tensor(1.0), torch.tensor(0.))
                 dice_iou = compute_dice(output, target)
                 dice_ious += dice_iou.data
-        dice_ious /= (len(test_dataset))
+        dice_ious /= (len(eval_data))
         logger("epoch : {}, dice_iou : {}".format(epoch, dice_ious))
         scheduler.step()
         epoch += 1
