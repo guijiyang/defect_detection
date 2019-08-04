@@ -84,9 +84,9 @@ def train(restart_train, data_dir,  cfg):
             mask_dataset, [train_data_lens, eval_data_lens])
 
         train_loader = data.DataLoader(train_data, batch_size=cfg.batch_size,
-                                       shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
+                                       shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
         test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
-                                      shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
+                                      shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
         model.train()
         for idx, (images, target) in enumerate(train_loader):
 
@@ -99,7 +99,7 @@ def train(restart_train, data_dir,  cfg):
             loss.backward()
             optimizer.step()
             if idx % 100 == 0 and idx != 0:
-                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
+                logger("epoch : {}, batchs : {}, loss :  {:.6f}".format(
                     epoch, idx, losses/100))
                 losses = 0
             # save whole model
