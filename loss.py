@@ -32,4 +32,5 @@ class FocalLoss(nn.Module):
         if self.size_average:
             return loss.mean()
         else:
-            return loss.sum()/pred.shape[0]
+            batch_loss = loss.sum(dim=(1,2,3))
+            return batch_loss.mean()
