@@ -120,7 +120,7 @@ def train(restart_train, data_dir, cfg):
         model.eval()
         dice_ious = 0
         with torch.no_grad():
-            for images, target in test_loader:
+            for images, target in eval_loader:
                 images, target = images.to(device), target.to(device)
                 output = model(images)
                 output = torch.where(
