@@ -3,6 +3,7 @@ import torch.utils.data as data
 import torch.optim as optim
 import torch.nn.functional as F
 import torch.nn as nn
+from thop import profile
 from ImgDataset import MaskDataset
 from classifier import CompactNet
 from logger import Logger
@@ -61,6 +62,11 @@ def train(restart_train, data_dir,  cfg):
                           momentum=cfg.momentum, weight_decay=cfg.weight_decay)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
 
+    # # 统计模型FLOPS
+    # input_flops=torch.randn(1,1,227,227).to(device)
+    # flops,params=profile(model,inputs=( input_flops,))
+    # logger('模型的FlOPS : {}, 参数量 : {}'.format(flops,params))
+
     if restart_train == True:
         if not os.path.exists(WEIGHT_PATH):
             os.mkdir(WEIGHT_PATH)
@@ -86,7 +92,7 @@ def train(restart_train, data_dir,  cfg):
 
         train_loader = data.DataLoader(train_data, batch_size=cfg.batch_size,
                                        shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
-        test_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
+        eval_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
                                       shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
         model.train()
         loss_epoch=0
@@ -114,7 +120,7 @@ def train(restart_train, data_dir,  cfg):
         correct = 0
         total = 0
         with torch.no_grad():
-            for images, target in test_loader:
+            for images, target in eval_loader:
                 images, target = images.to(device), target.to(device)
                 output = model(images)
                 pred = torch.argmax(output, dim=1)
