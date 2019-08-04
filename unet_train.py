@@ -45,8 +45,8 @@ def train(restart_train, data_dir, cfg):
     logger = Logger('log', 'defect_detection')
     logger('开始训练')
 
-    # device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
     WEIGHT_PATH = 'weights'
     GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
     MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_first_{}.pth')
