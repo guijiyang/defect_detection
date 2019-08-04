@@ -108,12 +108,14 @@ def train(restart_train, data_dir, cfg):
             losses += loss.data
             loss.backward()
             optimizer.step()
+            if idx %10 == 0 and idx !=0:
+                print('.', end='')
             if idx % 100 == 0 and idx != 0:
-                logger("epoch : {}, relative_step : {}, loss :  {:.6f}".format(
+                logger("epoch : {}, batchs : {}, loss :  {:.6f}".format(
                     epoch, idx, losses/100))
                 losses = 0
-            # save whole model
-            torch.save(model.state_dict(), MODEL_NAME.format(epoch))
+        # save whole model
+        torch.save(model.state_dict(), MODEL_NAME.format(epoch))
 
         model.eval()
         dice_ious = 0
@@ -133,5 +135,7 @@ def train(restart_train, data_dir, cfg):
 
 if __name__ == "__main__":
     cfg = detectConfig()
+    cfg.batch_size=2
+    cfg.image_size=(256,256)
     cfg.display()
     train(True, '/home/guijiyang/dataset/severstal_steel', cfg)
