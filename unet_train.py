@@ -41,14 +41,14 @@ def detection_collate(batch):
     return torch.stack(imgs, 0), torch.stack(targets, 0)
 
 
-def train(restart_train, data_dir, cfg):
+def train(data_dir, cfg,restart_train, epoch=1):
     logger = Logger('log', 'defect_detection')
     logger('开始训练')
 
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     WEIGHT_PATH = 'weights'
-    GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
+    # GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
     MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_first_{}.pth')
     metal_dataset = ImageDataset(
         data_dir, transform=ImageTransform(image_size=cfg.image_size))
@@ -75,13 +75,12 @@ def train(restart_train, data_dir, cfg):
     if restart_train == True:
         if not os.path.exists(WEIGHT_PATH):
             os.mkdir(WEIGHT_PATH)
-        epoch = 0
     else:
-        if os.path.exists(GLOBAL_STEP_FILE):
-            with open(GLOBAL_STEP_FILE, 'r') as f:
-                epoch = int(f.read())
-        else:
-            raise Exception('cannot find global step file')
+        # if os.path.exists(GLOBAL_STEP_FILE):
+        #     with open(GLOBAL_STEP_FILE, 'r') as f:
+        #         epoch = int(f.read())
+        # else:
+        #     raise Exception('cannot find global step file')
         # 加载模型权重
         if epoch > 0:
             if os.path.exists(MODEL_NAME.format(epoch)):
@@ -138,4 +137,4 @@ if __name__ == "__main__":
     cfg.batch_size=2
     cfg.image_size=(256,256)
     cfg.display()
-    train(True, '/home/guijiyang/dataset/severstal_steel', cfg)
+    train('/home/guijiyang/dataset/severstal_steel', cfg,True)
