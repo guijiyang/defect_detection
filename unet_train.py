@@ -124,7 +124,7 @@ def train(restart_train, data_dir, cfg):
                 images, target = images.to(device), target.to(device)
                 output = model(images)
                 output = torch.where(
-                    output > 0.5, torch.tensor(1.0), torch.tensor(0.))
+                    output > 0.5, torch.tensor(1.0).to(device), torch.tensor(0.).to(device))
                 dice_iou = compute_dice(output, target)
                 dice_ious += dice_iou.data
         dice_ious /= (len(eval_data))
