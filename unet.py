@@ -3,19 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def conv_3X3_Relu(in_channels, out_channels, stride=1):
+def conv_3X3_Relu(in_channels, out_channels, stride=1, use_bn=False):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, 3, stride, padding=1, bias=False),
-        nn.BatchNorm2d(out_channels),
+        nn.BatchNorm2d(out_channels) if use_bn else nn.Sequential(),
         nn.ReLU()
     )
 
 
-def atrous_conv_3X3_Relu(in_channels, out_channels, stride=1, dilation=2):
+def atrous_conv_3X3_Relu(in_channels, out_channels, stride=1, dilation=2, use_bn=False):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, 3, stride,
                   padding=2, dilation=2,  bias=False),
-        nn.BatchNorm2d(out_channels),
+        nn.BatchNorm2d(out_channels) if use_bn else nn.Sequential(),
         nn.ReLU()
     )
 

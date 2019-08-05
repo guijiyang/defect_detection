@@ -4,10 +4,11 @@ import torch.nn as nn
 import numpy as np
 
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, alpha=None, size_average=True):
+    def __init__(self, gamma=0, alpha=None, epsilon=1e-6, size_average=True):
         super(FocalLoss, self).__init__()
         self.gamma=gamma
         self.alpha=torch.as_tensor(alpha)
+        self.epsilon=torch.as_tensor(epsilon)
         # if isinstance(alpha,(float,int)):
         #     self.alpha=torch.Tensor([alpha, 1-alpha])
         # if isinstance(alpha, list):
@@ -25,12 +26,13 @@ class FocalLoss(nn.Module):
         #     input=input.transpose(1,2) #N,C,H*W => N,H*W,C
         #     input=input.contiguous().view(-1,input.shape[2]) #N,H*W,C => N*H*W,C
         # target=target.view(-1,1)
-        pt=torch.where(target==1, pred, 1-pred)
+        pt=torch.where(target==1, pred+self.epsilon, 1-pred+self.epsilon)
         log_pt=torch.log(pt)
         alpha=torch.where(target==1, self.alpha,1-self.alpha)
         loss=-1*alpha*(1-pt)**self.gamma*log_pt
         if self.size_average:
             return loss.mean()
         else:
-            batch_loss = loss.sum(dim=(1,2,3))
-            return batch_loss.mean()
+            return loss.sum()
+            # batch_loss = loss.sum(dim=(1,2,3))
+            # return batch_loss.mean()

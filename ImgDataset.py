@@ -29,14 +29,14 @@ class ImageDataset(data.Dataset):
         for idx in range(total_count):
             image_id = train_fd['ImageId_ClassId'][idx].split('_')[0]
             if cur_image_id != image_id:
-                if image_info != None:
+                if image_info is not None and len(image_info['mask']) != 0:
                     self.image_infos.append(image_info)
                 cur_image_id = image_id
                 image_info = {
                     'ImageId_path': os.path.join(dataset_dir, 'train_images', cur_image_id),
-                    'mask': [None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx]]}
-            else:
-                image_info['mask'].append(None if pd.isnull(train_fd['EncodedPixels'][idx]) else train_fd['EncodedPixels'][idx])
+                    'mask': []}
+            if pd.notnull(train_fd['EncodedPixels'][idx]):
+                image_info['mask'].append(train_fd['EncodedPixels'][idx])
         self.image_infos.append(image_info)
 
     def __len__(self):

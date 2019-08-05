@@ -1,11 +1,11 @@
 import torch.nn as nn
 
 
-def conv_Relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1, use_bnormal=True):
+def conv_Relu(in_channels, out_channels, kernel_size=3, stride=1, padding=1, use_bn=True):
     return nn.Sequential(
         nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
                   stride=stride, padding=padding, bias=False),
-        nn.BatchNorm2d(out_channels) if use_bnormal else nn.Sequential(),
+        nn.BatchNorm2d(out_channels) if use_bn else nn.Sequential(),
         nn.ReLU()
     )
 

@@ -48,7 +48,6 @@ def train(data_dir, cfg,restart_train, epoch=1):
     device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     WEIGHT_PATH = 'weights'
-    # GLOBAL_STEP_FILE = os.path.join(WEIGHT_PATH, 'epoch.log')
     MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_first_{}.pth')
     metal_dataset = ImageDataset(
         data_dir, transform=ImageTransform(image_size=cfg.image_size))
@@ -60,7 +59,7 @@ def train(data_dir, cfg,restart_train, epoch=1):
 
     # 加载模型
     model = UNet(image_size=cfg.image_size).to(device)
-    loss_network = FocalLoss(gamma=1, alpha=0.8, size_average=False).to(device)
+    loss_network = FocalLoss(gamma=0., alpha=0.8, size_average=False).to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
@@ -76,11 +75,6 @@ def train(data_dir, cfg,restart_train, epoch=1):
         if not os.path.exists(WEIGHT_PATH):
             os.mkdir(WEIGHT_PATH)
     else:
-        # if os.path.exists(GLOBAL_STEP_FILE):
-        #     with open(GLOBAL_STEP_FILE, 'r') as f:
-        #         epoch = int(f.read())
-        # else:
-        #     raise Exception('cannot find global step file')
         # 加载前面训练得到模型权重
         if epoch > 0:
             if os.path.exists(MODEL_NAME.format(epoch-1)):
@@ -128,13 +122,41 @@ def train(data_dir, cfg,restart_train, epoch=1):
                 dice_ious += dice_iou.data
         dice_ious /= (len(eval_data))
         logger("epoch : {}, dice_iou : {}".format(epoch, dice_ious))
-        scheduler.step()
+        # scheduler.step()
         epoch += 1
 
+def test(data_dir,image_size=(256,256)):
+    # device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')
+    WEIGHT_PATH = 'weights'
+    MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_first_30.pth')
+
+    # 加载模型
+    model = UNet(image_size=image_size).to(device)
+
+    model.load_state_dict(torch.load(MODEL_NAME))
+
+    model.eval()
+
+    metal_dataset = ImageDataset(
+        data_dir, transform=ImageTransform(image_size=image_size))
+
+    image, mask=metal_dataset[0]
+    image=image.view((1,)+image.shape)
+    mask=mask.view((1,)+mask.shape)
+    output=model(image)
+    output = torch.where(
+                    output > 0.5, torch.tensor(1.0).to(device), torch.tensor(0.).to(device))
+    dice_iou = compute_dice(output, mask)
+    print(dice_iou)
 
 if __name__ == "__main__":
+    data_dir='/home/guijiyang/dataset/severstal_steel'
+    # 训练
     cfg = detectConfig()
-    cfg.batch_size=2
+    cfg.batch_size=1
     cfg.image_size=(256,256)
     cfg.display()
-    train('/home/guijiyang/dataset/severstal_steel', cfg,True)
+    train(data_dir, cfg,True)
+    # 测试
+    # test(data_dir, image_size=(256,256))

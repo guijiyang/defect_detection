@@ -14,8 +14,8 @@ class Config():
         print("\n")
 
 class detectConfig(Config):
-    batch_size=6
-    learning_rate=5e-4
+    batch_size=2
+    learning_rate=1e-4
     max_epochs=30
     adjust_iter=3
     lr_decay=0.8

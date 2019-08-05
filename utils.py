@@ -52,7 +52,7 @@ def compute_dice(gt_mask, pred_mask, alpha=0.5, beta=0.5):
     r"""Computes IoU overlaps between two sets of masks.
 
    gt_masks, pred_masks: [batch, 1, Height, Width]
-   \text{dice}=\frac{TP}{2TP+FP+FN}
+   \text{dice}=\frac{2*TP}{2TP+FP+FN}
    """
     gt_mask_f = gt_mask.flatten()
     pred_mask_f = pred_mask.flatten()
