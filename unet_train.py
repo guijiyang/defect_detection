@@ -81,10 +81,10 @@ def train(data_dir, cfg,restart_train, epoch=1):
         #         epoch = int(f.read())
         # else:
         #     raise Exception('cannot find global step file')
-        # 加载模型权重
+        # 加载前面训练得到模型权重
         if epoch > 0:
-            if os.path.exists(MODEL_NAME.format(epoch)):
-                model.load_state_dict(torch.load(MODEL_NAME.format(epoch)))
+            if os.path.exists(MODEL_NAME.format(epoch-1)):
+                model.load_state_dict(torch.load(MODEL_NAME.format(epoch-1)))
             else:
                 raise Exception('cannot find model weights')
     logger('起始epoch：{}'.format(epoch))
