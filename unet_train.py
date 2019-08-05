@@ -60,7 +60,7 @@ def train(data_dir, cfg,restart_train, epoch=1):
 
     # 加载模型
     model = UNet(image_size=cfg.image_size).to(device)
-    loss_network = FocalLoss(gamma=1, alpha=0.5, size_average=False).to(device)
+    loss_network = FocalLoss(gamma=1, alpha=0.8, size_average=False).to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
