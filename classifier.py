@@ -23,11 +23,11 @@ class CompactNet(nn.Module):
             conv_Relu(96, 128, 5, 1, 0),  # 96*27*27 => 128*23*23
             nn.MaxPool2d(3, 2),  # 128*23*23 => 128*11*11
             # 128*11*11 => 256*11*11
-            conv_Relu(128, 256, 3, use_bnormal=False),
+            conv_Relu(128, 256, 3, use_bn=False),
             # 256*11*11 => 256*11*11
-            conv_Relu(256, 256, 3, use_bnormal=False),
+            conv_Relu(256, 256, 3, use_bn=False),
             # 256*11*11 => 128*11*11
-            conv_Relu(256, 128, 3, use_bnormal=False),
+            conv_Relu(256, 128, 3, use_bn=False),
             nn.MaxPool2d(3, 2),  # 128*11*11 => 128*5*5
         )
         self.fcs = nn.Sequential(

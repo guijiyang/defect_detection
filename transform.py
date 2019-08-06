@@ -30,11 +30,17 @@ class Resize(object):
         self.interpolation = interpolation
 
     def __call__(self, image, masks=None):
+        image_shape=image.shape
         image = cv2.resize(image, self.image_size,
                            interpolation=self.interpolation)
+        if len(image.shape)<len(image_shape):
+            image=np.expand_dims(image,-1)
         if masks is not None:
+            masks_shape=masks.shape
             masks = cv2.resize(masks, self.image_size,
                                interpolation=self.interpolation)
+            if len(masks.shape)<len(masks_shape):
+                masks=np.expand_dims(masks,-1)
         return image, masks
 
 
@@ -268,10 +274,10 @@ class ToTensor(object):
 class ImageTransform():
     def __init__(self, image_size=(512, 512)):
         self.augment = [
-            RandomCrop(image_size),
+            # RandomCrop(image_size),
+            Resize(image_size, cv2.INTER_LINEAR),
             RandomRotation(180),
             ToTensor()
-            # Resize(self.image_size, cv2.INTER_LINEAR),
         ]
 
     def __call__(self, image, masks):
