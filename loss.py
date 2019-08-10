@@ -1,38 +1,45 @@
 import torch
 import torch.nn as nn
-# import torch.nn.functional as F
+import torch.nn.functional as F
 import numpy as np
 
+from utils import computeDice
+
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, alpha=None, epsilon=1e-6, size_average=True):
+    def __init__(self, gamma=0, alpha=0.5, epsilon=1e-6, reduction='mean'):
         super(FocalLoss, self).__init__()
-        self.gamma=gamma
-        self.alpha=torch.as_tensor(alpha)
-        self.epsilon=torch.as_tensor(epsilon)
-        # if isinstance(alpha,(float,int)):
-        #     self.alpha=torch.Tensor([alpha, 1-alpha])
-        # if isinstance(alpha, list):
-        #     self.alpha=torch.Tensor(alpha)
-        self.size_average=size_average
-    
-    def to(self,device):
-        self.alpha=self.alpha.to(device)
+        self.gamma = gamma
+        self.alpha = torch.as_tensor(alpha)
+        self.epsilon = torch.as_tensor(epsilon)
+        self.reduction = reduction
+
+    def to(self, device):
+        self.alpha = self.alpha.to(device)
         super().to(device)
         return self
 
     def forward(self, pred, target):
-        # if input.dim()>2:
-        #     input=input.view(input.shape[0],input.shape[1],-1) #N,C,H,W => N,C,H*W
-        #     input=input.transpose(1,2) #N,C,H*W => N,H*W,C
-        #     input=input.contiguous().view(-1,input.shape[2]) #N,H*W,C => N*H*W,C
-        # target=target.view(-1,1)
-        pt=torch.where(target==1, pred+self.epsilon, 1-pred+self.epsilon)
-        log_pt=torch.log(pt)
-        alpha=torch.where(target==1, self.alpha,1-self.alpha)
-        loss=-1*alpha*(1-pt)**self.gamma*log_pt
-        if self.size_average:
+        pt = torch.where(target == 1, pred+self.epsilon, 1-pred+self.epsilon)
+        log_pt = torch.log(pt)
+        alpha = torch.where(target == 1, self.alpha, 1-self.alpha)
+        loss = -1*alpha*(1-pt)**self.gamma*log_pt
+        if self.reduction == 'mean':
             return loss.mean()
-        else:
+        elif self.reduction == 'sum':
             return loss.sum()
-            # batch_loss = loss.sum(dim=(1,2,3))
-            # return batch_loss.mean()
+        elif self.reduction == 'none':
+            return loss
+
+
+class DceDiceLoss(nn.Module):
+    def __init__(self, alpha=0.5, beta=1., reduction='mean'):
+        super(DceDiceLoss, self).__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.reduction = reduction
+
+    def forward(self, pred, target):
+        bce_loss = F.binary_cross_entropy(
+            pred, target.type_as(pred), reduce=self.reduction)
+        dice_loss = 1.-computeDice(pred, target, reduction=self.reduction)
+        return self.alpha*bce_loss+self.beta*dice_loss

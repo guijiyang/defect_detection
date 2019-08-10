@@ -50,7 +50,7 @@ class up_sample_conv(nn.Module):
 class UNet(nn.Module):
     """ UNet network for semantic  segmentation """
 
-    def __init__(self, image_size=(512, 512)):
+    def __init__(self, image_size=512):
         super(UNet, self).__init__()
         self.image_size = image_size
         self.start = nn.Sequential(
@@ -59,14 +59,14 @@ class UNet(nn.Module):
         # down sample layers
         self.dp1 = down_sample_conv(64, 128)
         self.dp2 = down_sample_conv(128, 256)
-        if self.image_size[0] == 512:
+        if self.image_size == 512:
             self.dp3 = down_sample_conv(256, 512)
 
             self.dp4 = down_sample_conv(512, 1024)
 
             # up sample layers
             self.up3 = up_sample_conv(1024, 512)
-        else:  # image_size[0]=256
+        else:  # image_size=256
             self.dp3 = down_sample_conv(256, 512)
         self.up2 = up_sample_conv(512, 256)
         self.up1 = up_sample_conv(256, 128)
@@ -97,7 +97,7 @@ class UNet(nn.Module):
         firstOut = self.start(x)             # 64*512*512 or 64*256*256
         down1 = self.dp1(firstOut)  # 128*256*256 or 128*128*128
         down2 = self.dp2(down1)  # 256*128*128 or 256*64*64
-        if self.image_size[0] == 512:
+        if self.image_size == 512:
             down3 = self.dp3(down2)  # 512*64*64
             down4 = self.dp4(down3)  # 1024*32*32
             up4 = F.interpolate(down4, scale_factor=2,
@@ -115,4 +115,3 @@ class UNet(nn.Module):
         output = torch.cat([convOut, firstOut], dim=1)
         output = self.end(output)  # 1*512*512 or 1*256*256
         return torch.sigmoid(output)
-        # return output

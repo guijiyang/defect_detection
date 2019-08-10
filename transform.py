@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms as transforms
+# import albumentations
 
 
 class ConvertFromInts(object):
@@ -30,17 +31,17 @@ class Resize(object):
         self.interpolation = interpolation
 
     def __call__(self, image, masks=None):
-        image_shape=image.shape
+        image_shape = image.shape
         image = cv2.resize(image, self.image_size,
                            interpolation=self.interpolation)
-        if len(image.shape)<len(image_shape):
-            image=np.expand_dims(image,-1)
+        if len(image.shape) < len(image_shape):
+            image = np.expand_dims(image, -1)
         if masks is not None:
-            masks_shape=masks.shape
+            masks_shape = masks.shape
             masks = cv2.resize(masks, self.image_size,
                                interpolation=self.interpolation)
-            if len(masks.shape)<len(masks_shape):
-                masks=np.expand_dims(masks,-1)
+            if len(masks.shape) < len(masks_shape):
+                masks = np.expand_dims(masks, -1)
         return image, masks
 
 
@@ -241,19 +242,26 @@ class RandomRotation(object):
                     masks[:, :, i], M, (image_size[1], image_size[0]))
         return img, masks
 
-# class RandomAffine(object):
-#     def __init__(self, degrees):
-#         if isinstance(degrees, numbers.Number):
-#             if degrees < 0:
-#                 raise ValueError("If degrees is a single number, it must be positive.")
-#             self.degrees = (-degrees, degrees)
-#         else:
-#             assert isinstance(degrees, (tuple, list)) and len(degrees) == 2, \
-#                 "degrees should be a list or tuple and it must be of length 2."
-#             self.degrees = degrees
+class Normalize(object):
+    def __init__(self, mean, std, inplace=False):
+        self.mean = mean
+        self.std=std
 
-#         def __call__(self, image, masks=None):
-#             cv2.getAffineTransform()
+    def __call__(self, img, masks=None):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+
+        Returns:
+            Tensor: Normalized Tensor image.
+        """
+        img=((img/255.-self.mean)/self.std).astype(np.float32)
+        return ((img-self.mean)/self.std).astype(np.float32), masks
+
+
+class rgb2gray(object):
+    def __call__(self, img, masks=None):
+        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), masks
 
 
 class ToTensor(object):
@@ -266,17 +274,19 @@ class ToTensor(object):
         img = self.totensor(img)
         if masks is not None:
             masks = torch.as_tensor(
-                masks).permute(2, 0, 1)
+                masks)
 
         return img, masks
 
 
 class ImageTransform():
-    def __init__(self, image_size=(512, 512)):
+    def __init__(self, mean, std):
         self.augment = [
             # RandomCrop(image_size),
-            Resize(image_size, cv2.INTER_LINEAR),
-            RandomRotation(180),
+            # Resize(image_size, cv2.INTER_LINEAR),
+            Normalize(mean, std, inplace=True),
+            # rgb2gray(),
+            # RandomRotation(180),
             ToTensor()
         ]
 

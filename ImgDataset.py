@@ -27,15 +27,17 @@ class ImageDataset(data.Dataset):
         image_info = None
         cur_image_id = None
         for idx in range(total_count):
-            image_id = train_fd['ImageId_ClassId'][idx].split('_')[0]
+            image_id,class_id = train_fd['ImageId_ClassId'][idx].split('_')
             if cur_image_id != image_id:
                 if image_info is not None and len(image_info['mask']) != 0:
                     self.image_infos.append(image_info)
                 cur_image_id = image_id
                 image_info = {
                     'ImageId_path': os.path.join(dataset_dir, 'train_images', cur_image_id),
+                    'class_id':[],
                     'mask': []}
             if pd.notnull(train_fd['EncodedPixels'][idx]):
+                image_info['class_id'].append(int(class_id))
                 image_info['mask'].append(train_fd['EncodedPixels'][idx])
         self.image_infos.append(image_info)
 
@@ -44,19 +46,15 @@ class ImageDataset(data.Dataset):
 
     def __getitem__(self, index):
         image_info = self.image_infos[index]
-        image = cv2.imread(image_info['ImageId_path'], 0)
-        # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        image=np.expand_dims(image,axis=-1)
-        masks = np.zeros_like(image,dtype=np.uint8)
+        image = cv2.imread(image_info['ImageId_path'])
+        image_shape=image.shape
+        masks = np.zeros((4,*image_shape[:-1]),dtype=np.uint8)
         for idx in range(len(image_info['mask'])):
-            # if image_info['mask'][idx]!= None:
-            mask=rle2mask(image_info['mask'][idx], image.shape[:2])
-            mask=np.expand_dims(mask, axis=-1)
-            mask=np.repeat(mask, image.shape[2], axis=-1)
-            masks+=mask
+            mask=rle2mask(image_info['mask'][idx], image_shape[:-1])
+            masks[image_info['class_id'][idx]-1]=mask
         masks=np.clip(masks,0,1)
         if self.transform:
-            image, masks = self.transform(image, masks)
+            image, masks = self.transform(image.astype(np.float32), masks)
         return image, masks
 
 class_id_map={'1':0,'2':1,'3':2,'4':3}

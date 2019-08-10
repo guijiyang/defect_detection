@@ -15,9 +15,6 @@ path = os.path.abspath(__file__)
 os.chdir(os.path.dirname(path))
 # from torchvision import transforms
 
-data_dir = '/home/guijiyang/dataset/severstal_steel'
-
-
 def detection_collate(batch):
     """Custom collate fn for dealing with batches of images that have a different
     number of associated object annotations (bounding boxes).
@@ -91,9 +88,9 @@ def train(restart_train, data_dir,  cfg):
             mask_dataset, [train_data_lens, eval_data_lens])
 
         train_loader = data.DataLoader(train_data, batch_size=cfg.batch_size,
-                                       shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
+                                       shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
         eval_loader = data.DataLoader(eval_data, batch_size=cfg.batch_size,
-                                      shuffle=True, num_workers=4, collate_fn=detection_collate, pin_memory=True)
+                                      shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
         model.train()
         loss_epoch=0
         for idx, (images, target) in enumerate(train_loader):
@@ -135,7 +132,32 @@ def train(restart_train, data_dir,  cfg):
         loss_epochs.append(loss_epoch)
         epoch += 1
 
+def test(data_dir, image_size=(227,227)):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device=torch.device('cpu')
+    WEIGHT_PATH = 'weights'
+    MODEL_NAME = os.path.join(WEIGHT_PATH, 'compactNet.pth')
+    test_dataset = MaskDataset(data_dir, transform=MaskTransform(image_size=image_size))
+
+    test_loader = data.DataLoader(test_dataset, batch_size=16,
+                                       shuffle=True, num_workers=0, collate_fn=detection_collate, pin_memory=True)
+    # 加载模型
+    model = CompactNet(4).to(device)
+    model.load_state_dict(torch.load(MODEL_NAME))
+    model.eval()
+
+    correct,total=0.,0
+    for images, target in test_loader:
+                images, target = images.to(device), target.to(device)
+                output = model(images)
+                pred = torch.argmax(output, dim=1)
+                correct += (pred == target).sum().float()
+                total += target.shape[0]
+    print('当前准确率为：{:.6f}'.format(correct/total))
+
 if __name__ == "__main__":
-    cfg = ClassifyConfig()
-    cfg.display()
-    train(True, data_dir, cfg)
+    data_dir = '/home/guijiyang/dataset/severstal_steel'
+    # cfg = ClassifyConfig()
+    # cfg.display()
+    # train(True, data_dir, cfg)
+    test(data_dir)

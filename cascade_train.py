@@ -5,9 +5,10 @@ import torch.nn.functional as F
 import torch
 from ImgDataset import ImageDataset
 from transform import ImageTransform
-from utils import computeDice, adjustStepLR
+from utils import  computeDice
 from unet import UNet
 from unetplus import Unet_plus
+from cascade import CascadeNet
 from loss import FocalLoss, DceDiceLoss
 from config import detectConfig
 from logger import Logger
@@ -49,9 +50,10 @@ def train(data_dir, cfg, restart_train, epoch=1):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     WEIGHT_PATH = 'weights'
-    MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_first_{}.pth')
+    MODEL_FIRST = os.path.join(WEIGHT_PATH, 'unet_first_60.pth')
+    MODEL_SECOND = os.path.join(WEIGHT_PATH, 'unet_second_{}.pth')
     metal_dataset = ImageDataset(
-        data_dir, transform=ImageTransform(mean=cfg.mean, std=cfg.std))
+        data_dir, transform=ImageTransform(image_size=cfg.image_size))
     dataset_lens = len(metal_dataset)
     train_data_lens = int(dataset_lens*0.9)
     eval_data_lens = dataset_lens-train_data_lens
@@ -60,13 +62,17 @@ def train(data_dir, cfg, restart_train, epoch=1):
         train_data_lens, eval_data_lens, batch_split))
 
     # 加载模型
-    # model = UNet(image_size=min(cfg.image_size)).to(device)
-    model = Unet_plus(3, 4, mode='train').to(device)
-    loss_network = FocalLoss(gamma=0., alpha=0.8, reduction='mean').to(device)
-    # loss_network = DceDiceLoss(alpha=0.5, beta=1.).to(device)
+    network_1 = Unet_plus(1, 1)
+    network_2 = Unet_plus(1, 1)
+    model = CascadeNet(network_1, network_2).to(device)
+    model.train_only_for_2()
+    # model = Unet_plus(1, 1, mode='train').to(device)
+    # loss_network = FocalLoss(gamma=0., alpha=0.8, size_average=False).to(device)
+    loss_network = DceDiceLoss(alpha=0.5, beta=0.5).to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
-    adjustStepLR(optimizer, epoch, cfg.adjust_iter,
-                 cfg.learning_rate, decay=cfg.lr_decay)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=cfg.adjust_iter, gamma=cfg.lr_decay, last_epoch=-1)
+
     # 统计模型参数
     # torchsummary.summary(model, (1,512,512),device='cpu')
     # 统计模型FLOPS
@@ -75,18 +81,20 @@ def train(data_dir, cfg, restart_train, epoch=1):
     # logger('模型的FlOPS : {}, 参数量 : {}'.format(flops,params))
 
     if restart_train == True:
-        if not os.path.exists(WEIGHT_PATH):
-            os.mkdir(WEIGHT_PATH)
+        if os.path.exists(MODEL_FIRST):
+            model.load_state_dict(torch.load(MODEL_FIRST))
+        else:
+            raise Exception('cannot find model weights')
     else:
         # 加载前面训练得到模型权重
         if epoch > 0:
-            if os.path.exists(MODEL_NAME.format(epoch-1)):
-                model.load_state_dict(torch.load(MODEL_NAME.format(epoch-1)))
+            if os.path.exists(MODEL_SECOND.format(epoch-1)):
+                # model.load_state_dict(torch.load(MODEL_SECOND.format(epoch-1)))
+                model.load_state_dict(torch.load(MODEL_FIRST), torch.load(
+                    MODEL_SECOND.format(epoch-1)))
             else:
                 raise Exception('cannot find model weights')
     logger('起始epoch：{}'.format(epoch))
-
-    prev_dice_ious = 0
     while epoch <= cfg.max_epochs:
         train_data, eval_data = random_split(
             metal_dataset, [train_data_lens, eval_data_lens])
@@ -102,7 +110,7 @@ def train(data_dir, cfg, restart_train, epoch=1):
             images, target = images.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(images)
-            loss = loss_network(output, target)
+            loss = loss_network(output[-1], target)
             losses += loss.data
             loss.backward()
             optimizer.step()
@@ -111,7 +119,7 @@ def train(data_dir, cfg, restart_train, epoch=1):
                     epoch, idx, losses/(cfg.batch_size*batch_split)))
                 losses = 0
         # save whole model
-        torch.save(model.state_dict(), MODEL_NAME.format(epoch))
+        torch.save(model.get_state_dict_net2(), MODEL_SECOND.format(epoch))
 
         model.eval()
         dice_ious = 0
@@ -120,17 +128,12 @@ def train(data_dir, cfg, restart_train, epoch=1):
                 images, target = images.to(device), target.to(device)
                 output = model(images)
                 output = torch.where(
-                    output > 0.5, torch.tensor(1.0).to(device), torch.tensor(0.).to(device))
+                    output[-1] > 0.5, torch.tensor(1.0).to(device), torch.tensor(0.).to(device))
                 dice_iou = computeDice(output, target, reduction='sum')
                 dice_ious += float(dice_iou)
         dice_ious /= eval_data_lens
-        # save whole model if current iou> prev iou
-        if dice_ious > prev_dice_ious:
-            torch.save(model.state_dict(), MODEL_NAME.format(epoch))
-            prev_dice_ious = dice_ious
         logger("epoch : {}, dice_iou : {}".format(epoch, dice_ious))
-        adjustStepLR(optimizer, epoch, cfg.adjust_iter,
-                     cfg.learning_rate, decay=cfg.lr_decay)
+        # scheduler.step()
         epoch += 1
 
 
