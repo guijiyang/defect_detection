@@ -5,6 +5,7 @@ import numpy as np
 
 from utils import computeDice
 
+
 class FocalLoss(nn.Module):
     def __init__(self, gamma=0, alpha=0.5, epsilon=1e-6, reduction='mean'):
         super(FocalLoss, self).__init__()
@@ -42,4 +43,4 @@ class DceDiceLoss(nn.Module):
         bce_loss = F.binary_cross_entropy(
             pred, target.type_as(pred), reduce=self.reduction)
         dice_loss = 1.-computeDice(pred, target, reduction=self.reduction)
-        return self.alpha*bce_loss+self.beta*dice_loss
+        return self.alpha*bce_loss+self.beta*dice_loss, bce_loss, dice_loss

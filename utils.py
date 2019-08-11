@@ -1,4 +1,6 @@
 import torch
+import colorsys
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -32,19 +34,31 @@ def rle2mask(rle, imgshape):
     return np.transpose(mask.reshape(width, height))
 
 
+def random_colors(N, bright=True):
+    """
+    Generate random colors.
+    To get visually distinct colors, generate them in HSV space then
+    convert to RGB.
+    """
+    brightness = 1.0 if bright else 0.7
+    hsv = [(i / N, 1, brightness) for i in range(N)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    random.shuffle(colors)
+    return colors
+
+
 # 显示带有mask的图像
 def displayTopMasks(image, masks, class_ids=None):
     """Display the given image and the top few class masks."""
-    fig = plt.figure(figsize=(14, 14))
-    for idx in range(len(masks)):
-        img = image.copy()
-        img = applyMask(img, masks[idx], color=[0.5, 0.5, 0.5])
-        img = np.squeeze(img, axis=-1)
-        ax = plt.subplot(2, 2, idx+1)
-        ax.imshow(img, cmap='gray')
-        ax.set_title('class id: {}'.format(idx))
-        ax.set_xticks([])
-        ax.set_yticks([])
+    colors = random_colors(masks.shape[0])
+    img = image.copy()
+    for idx in range(masks.shape[0]):
+        img = applyMask(img, masks[idx], color=colors[idx])
+    fig = plt.figure(figsize=(8, 16))
+    plt.imshow(img)
+    plt.title('class id: {}'.format(class_ids))
+    plt.xticks([])
+    plt.yticks([])
 
     plt.show()
 
@@ -54,7 +68,8 @@ def applyMask(image, mask, color, alpha=0.5):
     """
     for c in range(image.shape[-1]):
         image[:, :, c] = np.where(mask[:, :, c] == 1.0,
-                                  0,
+                                  image[:, :, c] *
+                                  (1 - alpha) + alpha * color[c] * 255,
                                   image[:, :, c])
     return image
 
@@ -65,9 +80,10 @@ def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
    gt_masks, pred_masks: [batch, 1, Height, Width]
    \text{dice}=\frac{2*TP}{2TP+FP+FN}
    """
+    pred_mask = pred_mask.type(torch.float)
+    gt_mask = gt_mask.type(torch.float)
     pred_mask_f = pred_mask.contiguous().view(pred_mask.shape[0], -1)
     gt_mask_f = gt_mask.contiguous().view(gt_mask.shape[0], -1)
-    gt_mask_f = gt_mask_f.type_as(pred_mask_f)
     tp = torch.sum(torch.mul(gt_mask_f, pred_mask_f), dim=1)
     den = torch.sum(pred_mask_f.pow(p)+gt_mask_f.pow(p), dim=1)
     dice = (2*tp+epilson)/(den+epilson)
@@ -91,3 +107,26 @@ def adjustStepLR(optimizer, epoch, adjust_lr_epoch=10, init_lr=1e-3, decay=0.8, 
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
     return lr
+
+
+def detectionCollate(batch):
+    """Custom collate fn for dealing with batches of images that have a different
+    number of associated object annotations (bounding boxes).
+
+    Arguments:
+        batch: (tuple) A tuple of tensor images and lists of annotations
+
+    Return:
+        A tuple containing:
+            1) (tensor) batch of images stacked on their 0 dim
+            2) (list of tensors) annotations for a given image are stacked on
+                                 0 dim
+    """
+    img_path = []
+    targets = []
+    imgs = []
+    for sample in batch:
+        img_path.append(sample[0])
+        imgs.append(sample[1])
+        targets.append(sample[2])
+    return img_path, torch.stack(imgs, 0), torch.stack(targets, 0)

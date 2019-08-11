@@ -38,8 +38,9 @@ class Resize(object):
             image = np.expand_dims(image, -1)
         if masks is not None:
             masks_shape = masks.shape
-            masks = cv2.resize(masks, self.image_size,
-                               interpolation=self.interpolation)
+            for idx,mask in enumerate(masks[:]):
+                masks[idx] = cv2.resize(mask, self.image_size,
+                                interpolation=self.interpolation)
             if len(masks.shape) < len(masks_shape):
                 masks = np.expand_dims(masks, -1)
         return image, masks
@@ -243,7 +244,7 @@ class RandomRotation(object):
         return img, masks
 
 class Normalize(object):
-    def __init__(self, mean, std, inplace=False):
+    def __init__(self, mean, std):
         self.mean = mean
         self.std=std
 
@@ -256,7 +257,7 @@ class Normalize(object):
             Tensor: Normalized Tensor image.
         """
         img=((img/255.-self.mean)/self.std).astype(np.float32)
-        return ((img-self.mean)/self.std).astype(np.float32), masks
+        return img, masks
 
 
 class rgb2gray(object):
@@ -280,17 +281,17 @@ class ToTensor(object):
 
 
 class ImageTransform():
-    def __init__(self, mean, std):
+    def __init__(self,image_size, mean, std):
         self.augment = [
             # RandomCrop(image_size),
-            # Resize(image_size, cv2.INTER_LINEAR),
-            Normalize(mean, std, inplace=True),
+            Resize(image_size, cv2.INTER_LINEAR),
+            Normalize(mean, std),
             # rgb2gray(),
             # RandomRotation(180),
             ToTensor()
         ]
 
-    def __call__(self, image, masks):
+    def __call__(self, image, masks=None):
         for tranform in self.augment:
             image, masks = tranform(image, masks)
         return image, masks
