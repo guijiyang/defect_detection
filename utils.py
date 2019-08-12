@@ -48,9 +48,9 @@ def random_colors(N, bright=True):
 
 
 # 显示带有mask的图像
-def displayTopMasks(image, masks, class_ids=None):
+def displayTopMasks(image, masks, class_ids=None, color_list=None):
     """Display the given image and the top few class masks."""
-    colors = random_colors(masks.shape[0])
+    colors =color_list if color_list is not None else random_colors(masks.shape[0])
     img = image.copy()
     for idx in range(masks.shape[0]):
         img = applyMask(img, masks[idx], color=colors[idx])
@@ -85,6 +85,7 @@ def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
     pred_mask_f = pred_mask.contiguous().view(pred_mask.shape[0], -1)
     gt_mask_f = gt_mask.contiguous().view(gt_mask.shape[0], -1)
     tp = torch.sum(torch.mul(gt_mask_f, pred_mask_f), dim=1)
+    np.logical_and()
     den = torch.sum(pred_mask_f.pow(p)+gt_mask_f.pow(p), dim=1)
     dice = (2*tp+epilson)/(den+epilson)
     if reduction == 'mean':
@@ -130,3 +131,37 @@ def detectionCollate(batch):
         imgs.append(sample[1])
         targets.append(sample[2])
     return img_path, torch.stack(imgs, 0), torch.stack(targets, 0)
+
+def mask2contour(mask, width=3):
+    # CONVERT MASK TO ITS CONTOUR
+    w = mask.shape[1]
+    h = mask.shape[0]
+    mask2 = np.concatenate([mask[:,width:],np.zeros((h,width))],axis=1)
+    mask2 = np.logical_xor(mask,mask2)
+    mask3 = np.concatenate([mask[width:,:],np.zeros((width,w))],axis=0)
+    mask3 = np.logical_xor(mask,mask3)
+    return np.logical_or(mask2,mask3) 
+
+def mask2pad(mask, pad=2):
+    # ENLARGE MASK TO INCLUDE MORE SPACE AROUND DEFECT
+    w = mask.shape[1]
+    h = mask.shape[0]
+    
+    # MASK UP
+    for k in range(1,pad,2):
+        temp = np.concatenate([mask[k:,:],np.zeros((k,w))],axis=0)
+        mask = np.logical_or(mask,temp)
+    # MASK DOWN
+    for k in range(1,pad,2):
+        temp = np.concatenate([np.zeros((k,w)),mask[:-k,:]],axis=0)
+        mask = np.logical_or(mask,temp)
+    # MASK LEFT
+    for k in range(1,pad,2):
+        temp = np.concatenate([mask[:,k:],np.zeros((h,k))],axis=1)
+        mask = np.logical_or(mask,temp)
+    # MASK RIGHT
+    for k in range(1,pad,2):
+        temp = np.concatenate([np.zeros((h,k)),mask[:,:-k]],axis=1)
+        mask = np.logical_or(mask,temp)
+    
+    return mask 

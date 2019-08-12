@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from torch.utils.data.dataset import random_split
 import torch.optim as optim
 import torch.utils.data as data
@@ -17,7 +18,6 @@ path = os.path.abspath(__file__)
 os.chdir(os.path.dirname(path))
 # import torchsummary
 # from thop import profile
-from tqdm import tqdm
 # from sklearn.cross_validation import train_test_split
 
 
@@ -28,11 +28,11 @@ def train(data_dir, cfg, restart_train, epoch=1):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     WEIGHT_PATH = 'weights'
-    MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_plus_{}.pth')
+    MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_plus.pth')
     metal_dataset = ImageDataset(
         data_dir, transform=ImageTransform(image_size=cfg.image_size, mean=cfg.mean, std=cfg.std))
     dataset_lens = len(metal_dataset)
-    train_data_lens = int(dataset_lens*0.9)
+    train_data_lens = int(dataset_lens*cfg.data_split)
     eval_data_lens = dataset_lens-train_data_lens
     batch_split = (train_data_lens//cfg.batch_size)//5
     logger('train : {}, eval : {}, batch_split : {}'.format(
@@ -59,8 +59,8 @@ def train(data_dir, cfg, restart_train, epoch=1):
     else:
         # 加载前面训练得到模型权重
         if epoch > 0:
-            if os.path.exists(MODEL_NAME.format(epoch-1)):
-                model.load_state_dict(torch.load(MODEL_NAME.format(epoch-1)))
+            if os.path.exists(MODEL_NAME):
+                model.load_state_dict(torch.load(MODEL_NAME))
             else:
                 raise Exception('cannot find model weights')
     logger('起始epoch：{}'.format(epoch))
@@ -89,9 +89,9 @@ def train(data_dir, cfg, restart_train, epoch=1):
             optimizer.step()
             if idx % batch_split == 0 and idx != 0:
                 logger(" batchs : {}, lr : {} |  loss :  {:.6f}, bce : {:.6f}, dice : {:.6f} | current loss : {:.6f}, bce : {:6f}, dice : {:.6f}".format(
-                           idx, lr, losses/batch_split, bce_losses /
-                           batch_split, dice_losses/batch_split,
-                           loss, bce_loss, dice_loss))
+                    idx, lr, losses/batch_split, bce_losses /
+                    batch_split, dice_losses/batch_split,
+                    loss, bce_loss, dice_loss))
                 losses, bce_losses, dice_losses = 0, 0, 0
 
         model.eval()
@@ -107,12 +107,13 @@ def train(data_dir, cfg, restart_train, epoch=1):
         dice_ious /= eval_data_lens
         # save whole model if current iou> prev iou
         if dice_ious > prev_dice_ious:
-            torch.save(model.state_dict(), MODEL_NAME.format(epoch))
+            torch.save(model.state_dict(), MODEL_NAME)
             prev_dice_ious = dice_ious
         logger("epoch : {}, dice_iou : {}".format(epoch, dice_ious))
         lr = adjustStepLR(optimizer, epoch, cfg.adjust_iter,
                           cfg.learning_rate, decay=cfg.lr_decay)
         epoch += 1
+
 
 if __name__ == "__main__":
     data_dir = '/home/guijiyang/dataset/severstal_steel'

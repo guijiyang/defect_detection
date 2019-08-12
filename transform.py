@@ -38,9 +38,9 @@ class Resize(object):
             image = np.expand_dims(image, -1)
         if masks is not None:
             masks_shape = masks.shape
-            for idx,mask in enumerate(masks[:]):
+            for idx, mask in enumerate(masks[:]):
                 masks[idx] = cv2.resize(mask, self.image_size,
-                                interpolation=self.interpolation)
+                                        interpolation=self.interpolation)
             if len(masks.shape) < len(masks_shape):
                 masks = np.expand_dims(masks, -1)
         return image, masks
@@ -243,10 +243,11 @@ class RandomRotation(object):
                     masks[:, :, i], M, (image_size[1], image_size[0]))
         return img, masks
 
+
 class Normalize(object):
     def __init__(self, mean, std):
         self.mean = mean
-        self.std=std
+        self.std = std
 
     def __call__(self, img, masks=None):
         """
@@ -256,7 +257,7 @@ class Normalize(object):
         Returns:
             Tensor: Normalized Tensor image.
         """
-        img=((img/255.-self.mean)/self.std).astype(np.float32)
+        img = ((img/255.-self.mean)/self.std).astype(np.float32)
         return img, masks
 
 
@@ -271,7 +272,7 @@ class ToTensor(object):
     def __init__(self):
         self.totensor = transforms.ToTensor()
 
-    def __call__(self,  img, masks=None):
+    def __call__(self, img, masks=None):
         img = self.totensor(img)
         if masks is not None:
             masks = torch.as_tensor(
@@ -281,7 +282,7 @@ class ToTensor(object):
 
 
 class ImageTransform():
-    def __init__(self,image_size, mean, std):
+    def __init__(self, image_size, mean, std):
         self.augment = [
             # RandomCrop(image_size),
             Resize(image_size, cv2.INTER_LINEAR),
@@ -292,8 +293,8 @@ class ImageTransform():
         ]
 
     def __call__(self, image, masks=None):
-        for tranform in self.augment:
-            image, masks = tranform(image, masks)
+        for transfer in self.augment:
+            image, masks = transfer(image, masks)
         return image, masks
 
 
@@ -305,6 +306,6 @@ class MaskTransform():
         ]
 
     def __call__(self, image):
-        for tranform in self.augment:
-            image, _ = tranform(image)
+        for transfer in self.augment:
+            image, _ = transfer(image)
         return image

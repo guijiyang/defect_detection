@@ -1,73 +1,106 @@
-from unetplus import Unet_plus
-from classifier import CompactNet
-
-import cv2
-import math
-import torch
+import pandas as pd
 import numpy as np
-import torch.nn as nn
-
-class DetectNet(nn.Module):
-    def __init__(self, threshold, min_size, cascade_size=512, classifier_size=(227,227), num_classes=4):
-        super(DetectNet, self).__init__()
-        self.threshold=threshold
-        self.min_size=min_size
-        self.cascade_size=cascade_size
-        self.classifier_size=classifier_size
-        self.num_classes=num_classes
-        self.cascade=Unet_plus(1,1,mode='test')
-        self.classifier=CompactNet(num_classes=num_classes)
-
-    def load_state_dict(self, cascade_dict, classifier_dict, strict=True):
-        self.cascade.load_state_dict(cascade_dict)
-        self.classifier.load_state_dict(classifier_dict)
+import cv2
+import torch.utils.data as data
+import torch
+from config import detectConfig
+from ImgDataset import ImageDataset, class_id_map
+from utils import mask2rle
+from unetplus import Unet_plus
+from transform import ImageTransform
+import os
+path = os.path.abspath(__file__)
+os.chdir(os.path.dirname(path))
 
 
-    def forward(self, x):
-        image_shape=x.shape
-        # 预测mask
-        pred_mask_t = self.cascade(x)
-        device=pred_mask_t.device
-        image=x.reshape(image_shape[-2:]).cpu().clone().numpy()
-        pred_mask=pred_mask_t.cpu().clone().numpy()
-        pred_mask=pred_mask.reshape(image_shape[-2:])
-        mask_t=cv2.threshold(pred_mask,self.threshold,1, cv2.THRESH_BINARY)[1]
-        # 然后计算mask中的所有连通区域，得到的不同的mask对应的值不同，这样就可以进一步分离每个mask
-        num_component,component=cv2.connectedComponents(mask_t.astype(np.uint8))
-        if num_component<1:
-            return None
+def detection_collate(batch):
+    img_path = []
+    imgs = []
+    for sample in batch:
+        img_path.append(sample[0])
+        imgs.append(sample[1])
+    return img_path, torch.stack(imgs, 0)
 
-        masks=np.zeros((self.num_classes,*image_shape[-2:]), dtype=np.uint8)
-        for i in range(1,num_component):
-            points=(component==i)
-            if points.sum() < self.min_size:
-                continue
-            points_value=np.where(points)
-            points_value=np.stack([points_value[1],points_value[0]], axis=1)
-            # 求mask的最小包围矩形，得到的是矩形的左上角点，长宽，和水平x轴的逆向夹角
-            rect=cv2.minAreaRect(points_value)
-            width=rect[1][0]
-            height=rect[1][1]
-            # 如果矩形面积等于0，则跳过分割mask图形过程
-            if width <=0. or height<=0.:
-                    continue
-                
-            # 将rect转化为矩形的四个角点
-            box=cv2.boxPoints(rect)
-            # box=np.int64(box)
-            src_box=box.astype(np.float32)
-            # 目标矩形
-            dst_box=np.array([[0, height-1],[0,0],[width-1,0],[width-1,height-1]], dtype=np.float32)
-            # 建立源矩形到目标矩形的映射矩阵
-            M=cv2.getPerspectiveTransform(src_box,dst_box)
-            warp=cv2.warpPerspective(image, M, (math.ceil(width), math.ceil(height)))
-            warp=cv2.resize(warp, self.classifier_size, interpolation=cv2.INTER_LINEAR)
-            classifier_input=torch.as_tensor(warp.reshape(1,1,*self.classifier_size)).to(device)
-            # 预测mask分类
-            classifier_pred= self.classifier(classifier_input)
 
-            pred_id = torch.argmax(classifier_pred, dim=1)
-            
-            masks[pred_id[0],points_value[:,1],points_value[:,0]]=1
+def postMask(pred, threshold,  min_size):
+    pred = np.where(pred>threshold,1,0).astype(np.uint8)
+    pred_mask=np.zeros_like(pred)
+    num=0
+    for i,masks in enumerate(pred):
+        for j,mask in enumerate(masks):
+            num_component, component = cv2.connectedComponents(mask)
+            for idx in range(1, num_component):
+                points = (component == idx)
+                if points.sum() > min_size:
+                    pred_mask[i,j,points]=1
+                    # points_value=np.where(points)
+                    # points_value=np.stack([points_value[0],points_value[1]], axis=1)
+                    # for point in points_value:
+                    #     pred_mask[i,j,point[0],point[1]]=1
+                    num+=1
+    return pred_mask, num
 
-        return masks
+
+class EvalImageDataset(data.Dataset):
+    def __init__(self, dataset_dir, transform=None):
+        super().__init__()
+        self.transform = transform
+        self.image_info = []
+        image_names = next(os.walk(dataset_dir))[2]
+        for image_name in image_names:
+            self.image_info.append(
+                {'image_id': image_name, 'image_path': os.path.join(dataset_dir, image_name)})
+
+    def __len__(self):
+        return len(self.image_info)
+
+    def __getitem__(self, index):
+        image_info = self.image_info[index]
+        image = cv2.imread(image_info['image_path'], 0)
+        if self.transform:
+            image, _ = self.transform(image)
+        return image_info['image_id'], image
+
+
+def test(data_dir, cfg,  image_size=(1600, 256)):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    #     device = torch.device('cpu')
+    WEIGHT_PATH = 'weights'
+    MODEL_NAME = os.path.join(WEIGHT_PATH, 'unet_plus_99.pth')
+
+    # 加载模型
+    model = Unet_plus(1, 4).to(device)
+
+    model.load_state_dict(torch.load(MODEL_NAME))
+
+    model.eval()
+
+    eval_dataset = EvalImageDataset(
+        data_dir, transform=ImageTransform(image_size=image_size, mean=cfg.mean, std=cfg.std))
+
+    eval_loader = data.DataLoader(eval_dataset, batch_size=2,
+                                  shuffle=False, num_workers=0, collate_fn=detection_collate, pin_memory=True)
+
+    submission = []
+    with torch.no_grad():
+        for image_path, image in eval_loader:
+            image = image.to(device)
+            output = model(image)
+            pred = output.cpu().numpy()
+            pred_mask,num=postMask(pred, cfg.threshold, cfg.min_size)
+            if output is not None:
+                for i, masks in enumerate(pred_mask):
+                    for j, mask in enumerate(masks):
+                        str_run_length = mask2rle(mask)
+                        image_id = image_path[i]+'_'+str(j+1)
+                        submission.append([image_id, str_run_length])
+
+    # Save to csv file
+    df = pd.DataFrame(submission, columns=['ImageId_ClassId', 'EncodedPixels'])
+    df.to_csv('submission.csv', index=False)
+
+
+if __name__ == "__main__":
+    DATA_DIR = '/home/guijiyang/dataset/severstal_steel/test_images'
+    cfg = detectConfig()
+    test(DATA_DIR, cfg)

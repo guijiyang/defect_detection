@@ -24,6 +24,9 @@ class detectConfig(Config):
     gamma=0.
     mean = 0.344
     std = 0.14
+    threshold=0.5
+    min_size=0
+    data_split = 0.8
 
 class ClassifyConfig(Config):
     batch_size=8

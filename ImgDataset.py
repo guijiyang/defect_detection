@@ -14,8 +14,6 @@ class ImageDataset(data.Dataset):
 
     Args:
         dataset_dir: directory of dataset;
-        mode: 'train' or 'test' mode;
-        split_ratio: ratio of train/test data split;
         transform: transform for Images.
     """
 
@@ -29,7 +27,7 @@ class ImageDataset(data.Dataset):
         for idx in range(total_count):
             image_id, class_id = train_fd['ImageId_ClassId'][idx].split('_')
             if cur_image_id != image_id:
-                if image_info is not None and len(image_info['mask']) != 0:
+                if image_info is not None:
                     self.image_infos.append(image_info)
                 cur_image_id = image_id
                 image_info = {
