@@ -19,7 +19,7 @@ class detectConfig(Config):
     max_epochs=30
     adjust_iter=10
     lr_decay=0.8
-    image_size=(512, 512)
+    image_size=(1600, 256)
     alpha=0.8
     gamma=0.
     mean = 0.344

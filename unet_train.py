@@ -12,12 +12,13 @@ from unetplus import Unet_plus
 from loss import FocalLoss, DceDiceLoss
 from config import detectConfig
 from logger import Logger
+from detect.unetplus import UnetPlus
 
 import os
 path = os.path.abspath(__file__)
 os.chdir(os.path.dirname(path))
 # import torchsummary
-# from thop import profile
+from thop import profile
 # from sklearn.cross_validation import train_test_split
 
 
@@ -40,7 +41,8 @@ def train(data_dir, cfg, restart_train, epoch=1):
 
     # 加载模型
     # model = UNet(image_size=min(cfg.image_size)).to(device)
-    model = Unet_plus(1, 4, mode='train').to(device)
+    # model = Unet_plus(1, 4, mode='train').to(device)
+    model=UnetPlus('resnet18',classes=4,inference_layer=4).to(device)
     loss_network = FocalLoss(gamma=0., alpha=0.8, reduction='mean').to(device)
     # loss_network = DceDiceLoss(alpha=0.5, beta=1.).to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
@@ -49,7 +51,7 @@ def train(data_dir, cfg, restart_train, epoch=1):
     # 统计模型参数
     # torchsummary.summary(model, (1,512,512),device='cpu')
     # 统计模型FLOPS
-    # input_flops=torch.randn(1,1,512,512)
+    # input_flops=torch.randn(1,3,1600,256).to(device)
     # flops,params=profile(model,inputs=( input_flops,))
     # logger('模型的FlOPS : {}, 参数量 : {}'.format(flops,params))
 
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     data_dir = '/home/guijiyang/dataset/severstal_steel'
     # 训练
     cfg = detectConfig()
-    cfg.batch_size = 2
+    cfg.batch_size = 1
     cfg.image_size = (1600, 256)  # W,H
     cfg.display()
     train(data_dir, cfg, True)

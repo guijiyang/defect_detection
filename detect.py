@@ -5,7 +5,7 @@ import torch.utils.data as data
 import torch
 from config import detectConfig
 from ImgDataset import ImageDataset, class_id_map
-from utils import mask2rle
+from utils import *
 from unetplus import Unet_plus
 from transform import ImageTransform
 import os
@@ -22,23 +22,6 @@ def detection_collate(batch):
     return img_path, torch.stack(imgs, 0)
 
 
-def postMask(pred, threshold,  min_size):
-    pred = np.where(pred>threshold,1,0).astype(np.uint8)
-    pred_mask=np.zeros_like(pred)
-    num=0
-    for i,masks in enumerate(pred):
-        for j,mask in enumerate(masks):
-            num_component, component = cv2.connectedComponents(mask)
-            for idx in range(1, num_component):
-                points = (component == idx)
-                if points.sum() > min_size:
-                    pred_mask[i,j,points]=1
-                    # points_value=np.where(points)
-                    # points_value=np.stack([points_value[0],points_value[1]], axis=1)
-                    # for point in points_value:
-                    #     pred_mask[i,j,point[0],point[1]]=1
-                    num+=1
-    return pred_mask, num
 
 
 class EvalImageDataset(data.Dataset):

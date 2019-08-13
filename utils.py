@@ -1,6 +1,7 @@
 import torch
 import colorsys
 import random
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -74,6 +75,21 @@ def applyMask(image, mask, color, alpha=0.5):
     return image
 
 
+def postMask(pred, threshold,  min_size):
+    pred = np.where(pred>threshold,1,0).astype(np.uint8)
+    pred_mask=np.zeros_like(pred)
+    num=0
+    for i,masks in enumerate(pred):
+        for j,mask in enumerate(masks):
+            num_component, component = cv2.connectedComponents(mask)
+            for idx in range(1, num_component):
+                points = (component == idx)
+                if points.sum() > min_size:
+                    pred_mask[i,j,points]=1
+                    num+=1
+    return pred_mask, num
+
+
 def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
     r"""Computes IoU overlaps between two sets of masks.
 
@@ -85,7 +101,6 @@ def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
     pred_mask_f = pred_mask.contiguous().view(pred_mask.shape[0], -1)
     gt_mask_f = gt_mask.contiguous().view(gt_mask.shape[0], -1)
     tp = torch.sum(torch.mul(gt_mask_f, pred_mask_f), dim=1)
-    np.logical_and()
     den = torch.sum(pred_mask_f.pow(p)+gt_mask_f.pow(p), dim=1)
     dice = (2*tp+epilson)/(den+epilson)
     if reduction == 'mean':
@@ -97,7 +112,6 @@ def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
     else:
         raise Exception('Unexpected reduction {}'.format(reduction))
 # def dice_loss()
-
 
 def adjustStepLR(optimizer, epoch, adjust_lr_epoch=10, init_lr=1e-3, decay=0.8, min_lr=1e-6):
     """
