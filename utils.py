@@ -90,7 +90,7 @@ def postMask(pred, threshold,  min_size):
     return pred_mask, num
 
 
-def computeDice(pred_mask, gt_mask, p=1, epilson=1e-6, reduction='mean'):
+def computeDice(pred_mask, gt_mask, p=1, epilson=1., reduction='mean'):
     r"""Computes IoU overlaps between two sets of masks.
 
    gt_masks, pred_masks: [batch, 1, Height, Width]
