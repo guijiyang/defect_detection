@@ -15,9 +15,9 @@ class Config():
 
 class detectConfig(Config):
     batch_size=2
-    learning_rate=1e-4
-    max_epochs=30
-    adjust_iter=10
+    learning_rate=5e-4
+    max_epochs=50
+    adjust_iter=5
     lr_decay=0.8
     image_size=(1600, 256)
     alpha=0.8

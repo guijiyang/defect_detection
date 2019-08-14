@@ -43,7 +43,7 @@ def train(data_dir, cfg, restart_train, epoch=1):
     # model = UNet(image_size=min(cfg.image_size)).to(device)
     # model = Unet_plus(1, 4, mode='train').to(device)
     model=UnetPlus('resnet18',classes=4,inference_layer=4).to(device)
-    loss_network = FocalLoss(gamma=0., alpha=0.8, reduction='mean').to(device)
+    loss_network = FocalLoss(gamma=cfg.gamma, alpha=cfg.alpha, reduction='mean').to(device)
     # loss_network = DceDiceLoss(alpha=0.5, beta=1.).to(device)
     optimizer = optim.Adam(model.parameters(), lr=cfg.learning_rate)
     lr = adjustStepLR(optimizer, epoch, cfg.adjust_iter,
@@ -83,7 +83,7 @@ def train(data_dir, cfg, restart_train, epoch=1):
             images, target = images.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(images)
-            loss, bce_loss, dice_loss = loss_network(output, target)
+            loss, bce_loss, dice_loss = loss_network(output.sigmoid_(), target)
             losses += loss
             bce_losses += bce_loss
             dice_losses += dice_loss

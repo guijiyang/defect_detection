@@ -141,6 +141,6 @@ class UnetDecoder(Model):
                 x41 = self.layer41([skips[2], skips[3]])
                 x42 = self.layer42([x31, skips[3], x41])
                 y = self.layer43([x32, skips[3], x41, x42])
-        y = self.layer5([x42, None])
+        y = self.layer5([y, None])
         y = self.final_conv(y)
         return y
