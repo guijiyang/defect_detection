@@ -46,10 +46,10 @@ class ImageDataset(data.Dataset):
         image_info = self.image_infos[index]
         image = cv2.imread(image_info['ImageId_path'])
         image_shape = image.shape
-        masks = np.zeros((4, *image_shape[:-1]), dtype=np.uint8)
+        masks = np.zeros((*image_shape[:-1],4), dtype=np.uint8)
         for idx in range(len(image_info['mask'])):
             mask = rle2mask(image_info['mask'][idx], image_shape[:-1])
-            masks[image_info['class_id'][idx]-1] = mask
+            masks[..., image_info['class_id'][idx]-1] = mask
         masks = np.clip(masks, 0, 1)
         if self.transform:
             image, masks = self.transform(image, masks)

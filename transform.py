@@ -38,9 +38,11 @@ class Resize(object):
             image = np.expand_dims(image, -1)
         if masks is not None:
             masks_shape = masks.shape
-            for idx, mask in enumerate(masks[:]):
-                masks[idx] = cv2.resize(mask, self.image_size,
-                                        interpolation=self.interpolation)
+            masks = cv2.resize(masks, self.image_size,
+                               interpolation=self.interpolation)
+            # for idx, mask in enumerate(masks[...,:]):
+            #     masks[idx] = cv2.resize(mask, self.image_size,
+            #                             interpolation=self.interpolation)
             if len(masks.shape) < len(masks_shape):
                 masks = np.expand_dims(masks, -1)
         return image, masks
@@ -235,12 +237,12 @@ class RandomRotation(object):
         M = cv2.getRotationMatrix2D(
             (image_size[1]//2, image_size[0]//2), angle,  self.scale)
         for i in range(img.shape[2]):
-            img[:, :, i] = cv2.warpAffine(
-                img[:, :, i], M, (image_size[1], image_size[0]))
+            img[..., i] = cv2.warpAffine(
+                img[..., i], M, (image_size[1], image_size[0]))
         if masks is not None:
             for i in range(masks.shape[2]):
-                masks[:, :, i] = cv2.warpAffine(
-                    masks[:, :, i], M, (image_size[1], image_size[0]))
+                masks[..., i] = cv2.warpAffine(
+                    masks[..., i], M, (image_size[1], image_size[0]))
         return img, masks
 
 
@@ -266,6 +268,34 @@ class rgb2gray(object):
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), masks
 
 
+class RandomFlip(object):
+    """
+        Args:
+            orientation: vertical flip 0, horizontal flip 1
+            p: probability for filp
+        Returns:
+            PIL Image: Randomly flipped image.
+        """
+
+    def __init__(self, orientation=0, p=0.5):
+        assert orientation in [0,1]
+        self.orientation = orientation
+        self.p = p
+
+    def __call__(self, img, masks=None):
+        """
+        Args:
+            img (PIL Image): Image to be flipped.
+
+        Returns:
+            PIL Image: Randomly flipped image.
+        """
+        if random.random() < self.p:
+            img= cv2.flip(img, self.orientation)
+            masks=cv2.flip(masks, self.orientation)
+        return img, masks
+
+
 class ToTensor(object):
     """ Convert image, masks  to torch.FloatTensor """
 
@@ -276,7 +306,7 @@ class ToTensor(object):
         img = self.totensor(img)
         if masks is not None:
             masks = torch.as_tensor(
-                masks)
+                masks).permute(2, 0, 1)
 
         return img, masks
 
@@ -285,10 +315,12 @@ class ImageTransform():
     def __init__(self, image_size, mean, std):
         self.augment = [
             # RandomCrop(image_size),
+            # RandomRotation(180),
+            # rgb2gray(),
+            RandomFlip(),
+            RandomFlip(orientation=1),
             Resize(image_size, cv2.INTER_LINEAR),
             Normalize(mean, std),
-            # rgb2gray(),
-            # RandomRotation(180),
             ToTensor()
         ]
 
