@@ -88,3 +88,50 @@ class MaskDataset(data.Dataset):
         if self.transform:
             image = self.transform(image)
         return image, class_id
+
+
+class CropDataset(data.Dataset):
+    r"""
+    croped 256x256 image dataset
+    """
+
+    def __init__(self, dataset_dir, csv_path, transform=None):
+        self.transform = transform
+        self.image_infos = []
+        self.image_count = 0
+        image_p_path = os.path.join(dataset_dir, 'images')
+        image_n_path = os.path.join(dataset_dir, 'images_n')
+        # mask_path = os.path.join(dataset_dir, 'masks')
+        img_p_list = next(os.walk(image_p_path))[2]
+        img_n_list = list(pd.read_csv(os.path.join(
+            csv_path, 'pred.csv')).head(12000).fname)
+        img_list = img_p_list+img_n_list
+        img_list = sorted(img_list)
+        for img_id in img_list:
+            if img_id in img_p_list:
+                self.image_infos.append({
+                    'image_path': os.path.join(image_p_path, img_id), 'mask_path': os.path.join(dataset_dir, 'masks', img_id)
+                })
+            else:
+                self.image_infos.append({
+                    'image_path': os.path.join(image_n_path, img_id), 'mask_path': None
+                })
+
+        self.image_count = len(self.image_infos)
+
+    def __len__(self):
+        return self.image_count
+
+    def __getitem__(self, index):
+        image_info = self.image_infos[index]
+        image = cv2.imread(image_info['image_path'])
+        image_shape = image.shape
+        masks = np.zeros((*image_shape[:-1], 4), dtype=np.uint8)
+        if image_info['mask_path']:
+            mask=cv2.imread(image_info['mask_path'],0)
+            for idx in range(4):
+                class_id=idx+1
+                masks[...,idx]=np.where(mask==class_id,1,0)
+        if self.transform:
+            image, masks = self.transform(image, masks)
+        return image_info['image_path'].split('/')[-1], image, masks
