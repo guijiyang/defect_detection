@@ -4,6 +4,7 @@ class Config():
     learning_rate=1e-3
     max_epochs=30
     image_size=None
+    threshold=0.5
 
     def display(self):
         """Display Configuration values."""
@@ -24,9 +25,9 @@ class detectConfig(Config):
     gamma=0.
     mean = 0.344
     std = 0.14
-    threshold=0.5
     min_size=0
     data_split = 0.8
+    backbone='resnext50_32x4d'
 
 class ClassifyConfig(Config):
     batch_size=8

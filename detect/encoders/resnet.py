@@ -81,4 +81,16 @@ resnet_encoders = {
             'layers': [3, 8, 36, 3],
         },
     },
+
+    'resnext50_32x4d': {
+        'encoder': ResNetEncoder,
+        'pretrained_url': model_urls['resnext50_32x4d'],
+        'out_shapes': (2048, 1024, 512, 256, 64),
+        'params': {
+            'block': Bottleneck,
+            'layers': [3, 4, 6, 3],
+            'groups' : 32,
+            'width_per_group' : 4
+        },
+    },
 }
